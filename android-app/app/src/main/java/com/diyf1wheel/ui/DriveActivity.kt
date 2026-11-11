@@ -45,7 +45,7 @@ class DriveActivity : Activity() {
     override fun onResume() {
         super.onResume()
         engine.acquire()
-        view.reloadExtras()
+        view.reloadSettings()
         engine.setDriving(true)
     }
 

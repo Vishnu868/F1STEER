@@ -14,6 +14,12 @@ enum class Preset(val label: String, val tuning: SteeringTuning?) {
     CUSTOM("Custom", null),
 }
 
+/** Big buttons in the top corners of the driving screen. */
+enum class ControllerLayout(val label: String, val description: String) {
+    AUTO_GEARS("Auto gears", "DRS and clutch on top, no paddles. Use automatic gears in the game."),
+    PADDLES("Paddle shift", "Gear down / gear up paddles on top. Use manual gears in the game."),
+}
+
 enum class PedalMode(val label: String) {
     DIGITAL("Digital - press = 100%"),
     ANALOG("Analog - slide thumb up for more"),
@@ -89,6 +95,11 @@ class Settings(context: Context) {
     fun resetAxis() = p.edit().remove("ax").remove("ay").remove("az").apply()
     val axisIsCustom get() = p.contains("ax")
 
+    var layout: ControllerLayout
+        get() = runCatching { ControllerLayout.valueOf(p.getString("layout", "AUTO_GEARS")!!) }
+            .getOrDefault(ControllerLayout.AUTO_GEARS)
+        set(v) = p.edit().putString("layout", v.name).apply()
+
     var pedalMode: PedalMode
         get() = runCatching { PedalMode.valueOf(p.getString("pedalMode", "DIGITAL")!!) }.getOrDefault(PedalMode.DIGITAL)
         set(v) = p.edit().putString("pedalMode", v.name).apply()
@@ -115,5 +126,8 @@ class Settings(context: Context) {
 
     companion object {
         val DEFAULT_EXTRAS = setOf(Protocol.Button.DRS, Protocol.Button.ERS, Protocol.Button.CLUTCH, Protocol.Button.PAUSE)
+
+        /** Buttons that the Auto gears layout always shows as the big top-corner buttons. */
+        val AUTO_LAYOUT_BIG = setOf(Protocol.Button.DRS, Protocol.Button.CLUTCH)
     }
 }

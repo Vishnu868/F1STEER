@@ -1,109 +1,104 @@
 package com.diyf1wheel.ui
 
-import java.util.Locale
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RectF
 import android.view.View
+import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.sin
 
-/** Draws a rotating F1-style wheel, the -100..+100 % output bar and two status lines. */
+/**
+ * Steering read-out: a 220° arc that fills from 12 o'clock towards the side you
+ * steer, a knob at the current position, the percentage and the physical angle.
+ */
 class SteeringGauge(private val dp: Float) {
-    private val p = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val t = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; isFakeBoldText = true }
-    private val wheel = Path()
-    private val tmp = RectF()
+    private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
+    private val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND }
+    private val knob = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val big = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER; typeface = Theme.CONDENSED_BOLD; color = Theme.TEXT
+    }
+    private val small = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER; typeface = Theme.CONDENSED_BOLD; letterSpacing = 0.12f
+    }
+    private val oval = RectF()
 
-    fun draw(c: Canvas, area: RectF, angleDeg: Double, steer: Double, status: String, statusColor: Int,
-             info: String, flash: Boolean = false) {
+    private companion object {
+        const val HALF_SWEEP = 110f          // degrees each side of 12 o'clock
+        const val TOP = 270f                 // 12 o'clock in Canvas angle terms
+    }
+
+    fun draw(c: Canvas, area: RectF, angleDeg: Double, steer: Double, flash: Boolean = false) {
         if (area.width() <= 0 || area.height() <= 0) return
-        val statusH = 18 * dp
-        val barH = 14 * dp
-        val textH = min(area.height() * 0.16f, 40 * dp)
-        val wheelArea = area.height() - statusH * 2 - barH - textH - 16 * dp
-        val size = min(area.width() * 0.8f, wheelArea)
+        val stroke = min(area.width(), area.height()) * 0.075f
+        // The arc's lowest points sit at 20° below horizontal: radius from the space available.
+        val rFromH = (area.height() - stroke) / (1f + sin(Math.toRadians(20.0)).toFloat())
+        val radius = min(area.width() / 2f - stroke, rFromH - stroke / 2)
+        if (radius <= 10 * dp) return
         val cx = area.centerX()
-        var y = area.top
+        val cy = area.top + stroke / 2 + radius + 2 * dp
+        oval.set(cx - radius, cy - radius, cx + radius, cy + radius)
 
-        t.textSize = 13 * dp
-        t.color = statusColor
-        c.drawText(status, cx, y + statusH * 0.8f, t)
-        y += statusH + 4 * dp
+        track.strokeWidth = stroke
+        track.color = if (flash) Theme.withAlpha(Theme.BLUE, 0x90) else Theme.TRACK
+        c.drawArc(oval, TOP - HALF_SWEEP, HALF_SWEEP * 2, false, track)
 
-        // wheel
-        if (size > 20 * dp) {
-            val cy = y + size / 2
-            c.save()
-            c.rotate(angleDeg.toFloat().coerceIn(-540f, 540f), cx, cy)
-            val w = size * 1.35f
-            val h = size * 0.8f
-            tmp.set(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
-            wheel.reset()
-            wheel.addRoundRect(tmp, h * 0.45f, h * 0.45f, Path.Direction.CW)
-            p.style = Paint.Style.FILL
-            p.color = Color.rgb(0x1C, 0x21, 0x2B)
-            c.drawPath(wheel, p)
-            p.style = Paint.Style.STROKE
-            p.strokeWidth = 3 * dp
-            p.color = if (flash) Color.rgb(0x2F, 0x8B, 0xFF) else Color.rgb(0x3A, 0x42, 0x55)
-            c.drawPath(wheel, p)
-            // grips
-            p.style = Paint.Style.FILL
-            p.color = Color.rgb(0x2A, 0x30, 0x3C)
-            c.drawRoundRect(tmp.left, tmp.top + h * 0.1f, tmp.left + w * 0.16f, tmp.bottom - h * 0.1f, 8 * dp, 8 * dp, p)
-            c.drawRoundRect(tmp.right - w * 0.16f, tmp.top + h * 0.1f, tmp.right, tmp.bottom - h * 0.1f, 8 * dp, 8 * dp, p)
-            // centre marker (12 o'clock)
-            p.color = Color.rgb(0xE1, 0x06, 0x00)
-            c.drawRect(cx - 3 * dp, tmp.top, cx + 3 * dp, tmp.top + h * 0.22f, p)
-            // "screen"
-            p.color = Color.rgb(0x0A, 0x0C, 0x10)
-            c.drawRoundRect(cx - w * 0.2f, cy - h * 0.18f, cx + w * 0.2f, cy + h * 0.22f, 6 * dp, 6 * dp, p)
-            t.textSize = h * 0.16f
-            t.color = Color.WHITE
-            c.drawText("${"%+.0f".format(Locale.US, angleDeg)}°", cx, cy + h * 0.1f, t)
-            c.restore()
-            y += size + 8 * dp
+        // ticks at 0, ±25, ±50, ±75, ±100 %
+        tick.strokeWidth = 2 * dp
+        for (k in -4..4) {
+            val a = Math.toRadians((TOP + k * HALF_SWEEP / 4).toDouble())
+            val r1 = radius - stroke * 0.95f
+            val r2 = radius - stroke * (if (k == 0) 1.9f else 1.45f)
+            tick.color = if (k == 0) Theme.RED else Theme.withAlpha(Theme.MUTED, 0x90)
+            c.drawLine(cx + r1 * cos(a).toFloat(), cy + r1 * sin(a).toFloat(),
+                       cx + r2 * cos(a).toFloat(), cy + r2 * sin(a).toFloat(), tick)
         }
 
-        // percentage
-        t.textSize = textH * 0.8f
-        t.color = Color.WHITE
-        val pct = (steer * 100).toInt()
-        c.drawText(if (pct == 0) "CENTRE" else if (pct < 0) "L ${-pct}%" else "R $pct%", cx, y + textH * 0.8f, t)
-        y += textH + 4 * dp
+        val s = steer.toFloat().coerceIn(-1f, 1f)
+        val col = if (abs(s) > 0.97f) Theme.RED else Theme.BLUE
+        if (abs(s) > 0.003f) {
+            fill.strokeWidth = stroke
+            fill.color = col
+            c.drawArc(oval, TOP, s * HALF_SWEEP, false, fill)
+        }
+        val ka = Math.toRadians((TOP + s * HALF_SWEEP).toDouble())
+        val kx = cx + radius * cos(ka).toFloat()
+        val ky = cy + radius * sin(ka).toFloat()
+        knob.color = Color.WHITE
+        c.drawCircle(kx, ky, stroke * 0.62f, knob)
+        knob.color = col
+        c.drawCircle(kx, ky, stroke * 0.32f, knob)
 
-        // bar
-        val bw = area.width() * 0.9f
-        val left = cx - bw / 2
-        p.style = Paint.Style.FILL
-        p.color = Color.rgb(0x1C, 0x21, 0x2B)
-        c.drawRoundRect(left, y, left + bw, y + barH, barH / 2, barH / 2, p)
-        p.color = Color.rgb(0x2F, 0x8B, 0xFF)
-        val x = cx + (bw / 2) * steer.toFloat().coerceIn(-1f, 1f)
-        c.drawRoundRect(min(cx, x), y, maxOf(cx, x), y + barH, barH / 2, barH / 2, p)
-        p.color = Color.WHITE
-        c.drawRect(cx - 1 * dp, y - 3 * dp, cx + 1 * dp, y + barH + 3 * dp, p)
-        y += barH + 4 * dp
-
-        t.textSize = 12 * dp
-        t.color = Color.rgb(0x8A, 0x93, 0xA6)
-        c.drawText(info, cx, y + statusH * 0.8f, t)
+        val pct = (s * 100).toInt()
+        big.textSize = radius * 0.42f
+        c.drawText("${abs(pct)}", cx, cy + big.textSize * 0.2f, big)
+        small.textSize = radius * 0.13f
+        small.color = if (pct == 0) Theme.MUTED else col
+        c.drawText(when { pct == 0 -> "CENTRE"; pct < 0 -> "LEFT %"; else -> "RIGHT %" },
+            cx, cy + big.textSize * 0.2f + small.textSize * 1.6f, small)
+        small.color = Theme.withAlpha(Theme.TEXT, 0xB0)
+        c.drawText(String.format(Locale.US, "%+.0f°", angleDeg), cx, cy - big.textSize * 0.95f, small)
     }
 }
 
-/** Small live gauge for the setup screen. */
+/** Live gauge for the setup screen: status line, arc, and an info line. */
 class GaugeView(context: Context, private val source: () -> Triple<Double, Double, Pair<String, Int>>) : View(context) {
-    private val gauge = SteeringGauge(resources.displayMetrics.density)
+    private val dp = resources.displayMetrics.density
+    private val gauge = SteeringGauge(dp)
+    private val chip = Theme.Chip(dp)
     private val area = RectF()
-    var info = ""
 
     override fun onDraw(canvas: Canvas) {
         val (angle, steer, status) = source()
-        area.set(0f, 0f, width.toFloat(), height.toFloat())
-        gauge.draw(canvas, area, angle, steer, status.first, status.second, info)
+        val h = chip.draw(canvas, width / 2f, 0f, status.first, status.second, 12f)
+        area.set(0f, h + 10 * dp, width.toFloat(), height.toFloat())
+        gauge.draw(canvas, area, angle, steer)
         postInvalidateOnAnimation()
     }
 }

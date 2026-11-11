@@ -16,7 +16,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -31,7 +30,9 @@ import com.diyf1wheel.net.Protocol
 import com.diyf1wheel.net.UdpLink
 import com.diyf1wheel.sensor.SteeringSensor
 import com.diyf1wheel.sensor.SteeringTuning
+import com.diyf1wheel.settings.ControllerLayout
 import com.diyf1wheel.settings.PedalMode
+import com.diyf1wheel.settings.Settings
 import com.diyf1wheel.settings.Preset
 import kotlin.concurrent.thread
 
@@ -51,6 +52,8 @@ class MainActivity : Activity() {
     private lateinit var gauge: GaugeView
     private val sliders = mutableMapOf<String, Pair<SeekBar, TextView>>()
     private val presetButtons = mutableMapOf<Preset, Button>()
+    private val layoutTiles = mutableMapOf<ControllerLayout, LinearLayout>()
+    private lateinit var extrasGrid: LinearLayout
     private var suppressSliderEvents = false
 
     companion object {
@@ -113,6 +116,33 @@ class MainActivity : Activity() {
             background = rounded(RED, 14f)
             setOnClickListener { startActivity(Intent(this@MainActivity, DriveActivity::class.java)) }
         }, lp(top = 14, height = 64))
+
+        // ---- controller layout
+        val lay = card(root, "Controller layout")
+        val tiles = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        for (l in ControllerLayout.entries) {
+            val tile = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(px(10), px(10), px(10), px(10))
+                addView(LayoutPreview(context, l), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(84)))
+                addView(TextView(context).apply {
+                    text = l.label; setTextColor(Color.WHITE); textSize = 15f; typeface = Typeface.DEFAULT_BOLD
+                    setPadding(0, px(8), 0, 0)
+                })
+                addView(TextView(context).apply { text = l.description; setTextColor(MUTED); textSize = 12f })
+                setOnClickListener {
+                    engine.settings.layout = l
+                    refreshLayoutTiles()
+                    refreshExtrasGrid()
+                }
+            }
+            layoutTiles[l] = tile
+            tiles.addView(tile, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                if (l.ordinal > 0) marginStart = px(10)
+            })
+        }
+        lay.addView(tiles)
+        refreshLayoutTiles()
 
         // ---- connection
         val conn = card(root, "Connection to laptop")
@@ -188,47 +218,27 @@ class MainActivity : Activity() {
         // ---- controls
         val ctl = card(root, "Driving screen")
         ctl.addView(label("Throttle / brake"))
-        for (m in PedalMode.entries) {
-            ctl.addView(CheckBox(this).apply {
-                text = m.label; setTextColor(Color.WHITE)
-                isChecked = engine.settings.pedalMode == m
-                tag = "pedal_$m"
-                setOnClickListener {
-                    engine.settings.pedalMode = m
-                    for (o in PedalMode.entries) (ctl.findViewWithTag<CheckBox>("pedal_$o")).isChecked = o == m
-                }
-            })
-        }
-        ctl.addView(label("Extra buttons on the driving screen"))
-        val extras = engine.settings.extraButtons.toMutableSet()
-        for (b in Protocol.Button.entries) {
-            ctl.addView(CheckBox(this).apply {
-                text = b.label; setTextColor(Color.WHITE); isChecked = b in extras
-                setOnCheckedChangeListener { _, c ->
-                    if (c) extras.add(b) else extras.remove(b)
-                    engine.settings.extraButtons = extras.toSet()
-                }
-            })
-        }
+        ctl.addView(segmented(PedalMode.entries.map { it.label.substringBefore(" -") },
+            PedalMode.entries.indexOf(engine.settings.pedalMode)) { i ->
+            engine.settings.pedalMode = PedalMode.entries[i]
+        })
+        ctl.addView(muted("Digital: touching the pedal = 100 %. Analog: slide your thumb up the pedal for more."))
+        ctl.addView(label("Small buttons in the middle of the screen"))
+        extrasGrid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        ctl.addView(extrasGrid)
+        refreshExtrasGrid()
         ctl.addView(Switch(this).apply {
             text = "Vibrate on paddle / button press"; setTextColor(Color.WHITE)
             isChecked = engine.settings.haptics
+            setPadding(0, px(10), 0, 0)
             setOnCheckedChangeListener { _, c -> engine.settings.haptics = c }
         })
         ctl.addView(label("Send rate (higher = smoother, more battery)"))
-        val rates = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        for (r in listOf(100, 200, 250)) {
-            rates.addView(Button(this).apply {
-                text = "$r Hz"; tag = "rate_$r"
-                setOnClickListener {
-                    engine.settings.sendRateHz = r
-                    refreshRateButtons(rates)
-                    if (engine.link.status != UdpLink.Status.STOPPED) engine.connect()
-                }
-            }, LinearLayout.LayoutParams(0, px(44), 1f).apply { marginEnd = px(4) })
-        }
-        ctl.addView(rates)
-        refreshRateButtons(rates)
+        val rates = listOf(100, 200, 250)
+        ctl.addView(segmented(rates.map { "$it Hz" }, rates.indexOf(engine.settings.sendRateHz).coerceAtLeast(0)) { i ->
+            engine.settings.sendRateHz = rates[i]
+            if (engine.link.status != UdpLink.Status.STOPPED) engine.connect()
+        })
 
         // ---- diagnostics
         val dbg = card(root, "Sensor debug")
@@ -292,10 +302,68 @@ class MainActivity : Activity() {
         presetButtons.forEach { (k, b) -> style(b, if (k == p) RED else Color.rgb(0x23, 0x29, 0x38)) }
     }
 
-    private fun refreshRateButtons(row: LinearLayout) {
-        for (r in listOf(100, 200, 250)) row.findViewWithTag<Button>("rate_$r")?.let {
-            style(it, if (engine.settings.sendRateHz == r) RED else Color.rgb(0x23, 0x29, 0x38))
+    private fun refreshLayoutTiles() {
+        val cur = engine.settings.layout
+        layoutTiles.forEach { (l, v) ->
+            v.background = GradientDrawable().apply {
+                setColor(if (l == cur) 0xFF1E1416.toInt() else FIELD)
+                cornerRadius = 12 * dp
+                setStroke(px(if (l == cur) 2 else 1), if (l == cur) RED else 0xFF2A3040.toInt())
+            }
         }
+    }
+
+    /** Toggle chips for the small centre buttons; DRS/Clutch are fixed big buttons in Auto gears. */
+    private fun refreshExtrasGrid() {
+        val grid = extrasGrid
+        grid.removeAllViews()
+        val auto = engine.settings.layout == ControllerLayout.AUTO_GEARS
+        val chosen = engine.settings.extraButtons.toMutableSet()
+        var row: LinearLayout? = null
+        Protocol.Button.entries.forEachIndexed { i, b ->
+            if (i % 4 == 0) {
+                row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, px(6), 0, 0) }
+                grid.addView(row)
+            }
+            val fixed = auto && b in Settings.AUTO_LAYOUT_BIG
+            val chip = Button(this).apply {
+                text = b.label; textSize = 11f; isAllCaps = false; minHeight = 0; minimumHeight = 0
+                setPadding(0, 0, 0, 0)
+                isEnabled = !fixed
+                fun paint() {
+                    val on = fixed || b in chosen
+                    background = GradientDrawable().apply {
+                        setColor(if (on) 0xFF2A1A1A.toInt() else FIELD)
+                        cornerRadius = 20 * dp
+                        setStroke(px(1), if (on) RED else 0xFF2A3040.toInt())
+                    }
+                    setTextColor(if (fixed) MUTED else if (on) Color.WHITE else MUTED)
+                }
+                paint()
+                setOnClickListener {
+                    if (b in chosen) chosen.remove(b) else chosen.add(b)
+                    engine.settings.extraButtons = chosen.toSet()
+                    paint()
+                }
+            }
+            row!!.addView(chip, LinearLayout.LayoutParams(0, px(36), 1f).apply { if (i % 4 > 0) marginStart = px(6) })
+        }
+        if (auto) grid.addView(muted("In Auto gears, DRS and Clutch are the big top buttons.").apply { setPadding(0, px(6), 0, 0) })
+    }
+
+    /** A row of mutually exclusive buttons. */
+    private fun segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit): LinearLayout {
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, px(4), 0, px(4)) }
+        val buttons = options.mapIndexed { i, t ->
+            Button(this).apply { text = t; textSize = 13f; isAllCaps = false }
+        }
+        fun paint(sel: Int) = buttons.forEachIndexed { i, b -> style(b, if (i == sel) RED else Color.rgb(0x23, 0x29, 0x38)) }
+        buttons.forEachIndexed { i, b ->
+            b.setOnClickListener { paint(i); onSelect(i) }
+            row.addView(b, LinearLayout.LayoutParams(0, px(42), 1f).apply { if (i > 0) marginStart = px(6) })
+        }
+        paint(selected)
+        return row
     }
 
     private fun saveConnectionFields(): Boolean {
