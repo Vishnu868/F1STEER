@@ -269,6 +269,7 @@ class Receiver:
                 return (0.0, 0.0, 0.0, frozenset())
             if self.timed_out:
                 self.timed_out = False
+                self.event("Phone input live")
 
             m = self.cfg.mapping
             press_s = self.cfg.gear_press_ms / 1000

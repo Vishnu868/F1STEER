@@ -13,6 +13,31 @@ Legend: ✅ **verified** (run and passed, see "evidence") · 🟡 **verified in 
 | End to end on one PC: simulated phone → real UDP (5 % packet loss) → receiver → ViGEmBus → XInput | `python tools\integration_test.py` | ✅ full lock both ways, analog brake, **exactly 3 up + 3 down shifts despite loss**, neutral after disconnect, 249 Hz controller rate, ~5 ms loopback RTT |
 | Dashboard UI smoke test with live traffic | (manual script) | ✅ no UI exceptions, live at ~200 packets/s |
 
+## Hardware test log: 2026-11-11, Nothing Phone (2) (Android 16) → build laptop over USB tethering
+
+Measured with `tools/xinput_recorder.py`, which reads the virtual pad through Windows XInput
+(exactly what the game sees).
+
+| Test | Result | Evidence |
+|---|---|---|
+| Sensor selection | ✅ | Hardware *Game Rotation Vector* (QTI), 210 Hz |
+| Discovery + PIN pairing | ✅ | *Find laptop* filled in the IP by itself; connected first time |
+| Latency / loss | ✅ | 4.4 ms round trip, 200 packets/s, 0 dropped |
+| 1. Steering range | ✅ | Full −100 % … +100 %, 3021 distinct analog values in 219 s |
+| 2. Return to centre | ✅ | Rests after turns: −0.6, +0.2, −1.1, −0.4, +1.1, 0.0, +2.0, 0.0 % |
+| 4. Throttle / brake | ✅ | Both reach 100 %, held for exactly as long as touched (2.0 s / 1.6 s) |
+| 5. Paddles | ✅ | Scripted 3× UP, 2× DOWN, 1× DRS arrived as exactly 3 A, 2 X, 1 Y. Each tap = one 56-64 ms pulse, never doubled |
+| Throttle held + paddle tapped | ✅ | Throttle stayed on continuously (3.1 s) while UP was tapped |
+| App restart | ✅ | Reinstall/restart → reconnected automatically |
+| 7. Network cut while holding throttle | ✅ | USB tethering switched off via ADB → game throttle 0 within 439 ms of the command (incl. ADB/USB mode-switch delay; app timeout is 150 ms); receiver logged the timeout; phone back to LIVE · 4 ms by itself after tethering returned, same IPs |
+| 7. Back button while holding throttle | ✅ | Throttle 0 within 199 ms (incl. ADB delay) |
+| 7. Screen lock while holding throttle | ✅ | Throttle 0 within 647 ms. Android pauses the app only after the screen-off animation |
+| 7. Notification shade while holding throttle | ✅ | Throttle 0 within 509 ms when opened by command (window-focus path). A real finger swipe also cancels the touch immediately |
+| 7. Wrong PIN | ✅ (unit test) | Not repeated on the phone. Covered by `test_wrong_pin_ignored` and the Kotlin `rejectsWrongPin` test |
+| 6. F1 25 in game | ⬜ | Final step, on the gaming laptop |
+
+Status-bar overlap found on Android 16 (edge-to-edge): fixed and verified on the device.
+
 ## Staged hardware tests
 
 ### TEST 1: Sensor (phone only) ⬜
