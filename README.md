@@ -6,7 +6,8 @@ EA SPORTS F1 25 (and other PC racing games that accept an Xbox controller).
 * **Steering** from the phone's gyroscope: true analog, drift-corrected by gravity,
   calibrated centre and axis, adjustable range, dead zone, curve and smoothing.
 * **Touchscreen pedals:** throttle and brake (digital, or analog by thumb position).
-* **F1-style paddles:** right = gear up, left = gear down, exactly one shift per tap.
+* **Two layouts:** *Auto gears* (big DRS and Clutch buttons) or *Paddle shift* (right = gear up,
+  left = gear down, exactly one shift per tap).
 * **Extra buttons:** DRS, ERS, clutch, pause, look back, flashback, pit limiter, MFD (pick what you want on screen).
 * The Windows receiver presents a **virtual Xbox 360 controller** (ViGEmBus) that games recognise natively.
 * Local network only: UDP, PIN pairing with signed packets, no accounts, no cloud, no telemetry.

@@ -43,11 +43,20 @@ The cable also keeps the phone charged.
 See [CALIBRATION.md](CALIBRATION.md). In short: hold the wheel straight → **Set centre** →
 **START DRIVING**.
 
-On the driving screen:
+Pick a **controller layout** on the setup screen. Pedals are always **BRAKE** bottom left and
+**THROTTLE** bottom right; the layout decides the two big top buttons:
 
-* Left side: **DOWN paddle** (top), **BRAKE** (bottom).
-* Right side: **UP paddle** (top), **THROTTLE** (bottom).
-* Top centre: the extra buttons you enabled (DRS, ERS, CLUTCH, PAUSE…).
+| Layout | Top left | Top right | Use with |
+|---|---|---|---|
+| **Auto gears** (default) | **DRS** | **CLUTCH** | Automatic gearbox in the game |
+| **Paddle shift** | **DOWN** (gear −) | **UP** (gear +) | Manual gearbox in the game |
+
+Also on the driving screen:
+
+* Top centre: connection status, then the small buttons you enabled (ERS, PAUSE…). In
+  Auto gears, DRS and Clutch aren't repeated there.
+* Middle: the steering arc. It fills left or right from 12 o'clock and shows the percentage
+  and the physical wheel angle; it turns red at full lock.
 * Bottom centre: **HOLD TO CENTRE** (hold 0.6 s to re-centre).
 * Back gesture → returns to setup. Input to the game stops immediately (neutral).
 

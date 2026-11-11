@@ -1,12 +1,12 @@
 package com.diyf1wheel.ui
 
-import java.util.Locale
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RadialGradient
 import android.graphics.RectF
+import android.graphics.Shader
 import android.os.SystemClock
 import android.util.SparseArray
 import android.view.HapticFeedbackConstants
@@ -15,7 +15,10 @@ import android.view.View
 import com.diyf1wheel.engine.WheelEngine
 import com.diyf1wheel.net.Protocol
 import com.diyf1wheel.net.UdpLink
+import com.diyf1wheel.settings.ControllerLayout
 import com.diyf1wheel.settings.PedalMode
+import com.diyf1wheel.settings.Settings
+import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
 
@@ -27,23 +30,37 @@ import kotlin.math.min
  *  - a finger that slides well outside its control releases it;
  *  - paddles fire exactly one shift per touch-down (with a short debounce);
  *  - ACTION_CANCEL (e.g. a system gesture) releases everything.
+ *
+ * Two layouts ([ControllerLayout]): AUTO_GEARS puts DRS / CLUTCH in the top corners,
+ * PADDLES puts gear down / gear up there. Pedals are always bottom-left / bottom-right.
  */
 class DriveView(context: Context, private val engine: WheelEngine) : View(context) {
 
     private enum class Kind { PADDLE_UP, PADDLE_DOWN, THROTTLE, BRAKE, BUTTON, CENTRE }
 
-    private inner class Control(val kind: Kind, val label: String, val color: Int, val button: Protocol.Button? = null) {
+    private class Control(
+        val kind: Kind, val label: String, val color: Int,
+        val button: Protocol.Button? = null, val sub: String = "",
+        val icon: Theme.Icon = Theme.Icon.NONE, val compact: Boolean = false,
+    ) {
         val rect = RectF()
         var pressed = false
         var value = 0f
     }
 
     private val dp = resources.displayMetrics.density
-    private val paddleUp = Control(Kind.PADDLE_UP, "UP  +", Color.rgb(0x2F, 0x8B, 0xFF))
-    private val paddleDown = Control(Kind.PADDLE_DOWN, "−  DOWN", Color.rgb(0x9B, 0x5C, 0xFF))
-    private val throttle = Control(Kind.THROTTLE, "THROTTLE", Color.rgb(0x1E, 0xD7, 0x60))
-    private val brake = Control(Kind.BRAKE, "BRAKE", Color.rgb(0xE1, 0x06, 0x00))
-    private val centre = Control(Kind.CENTRE, "HOLD TO CENTRE", Color.rgb(0x55, 0x5E, 0x70))
+
+    private val paddleUp = Control(Kind.PADDLE_UP, "UP", Theme.BLUE, sub = "GEAR +", icon = Theme.Icon.CHEVRON_UP)
+    private val paddleDown = Control(Kind.PADDLE_DOWN, "DOWN", Theme.PURPLE, sub = "GEAR −", icon = Theme.Icon.CHEVRON_DOWN)
+    private val bigDrs = Control(Kind.BUTTON, "DRS", Theme.GREEN, Protocol.Button.DRS, sub = "TAP")
+    private val bigClutch = Control(Kind.BUTTON, "CLUTCH", Theme.ORANGE, Protocol.Button.CLUTCH, sub = "HOLD")
+    private val throttle = Control(Kind.THROTTLE, "THROTTLE", Theme.GREEN, icon = Theme.Icon.ARROW_UP)
+    private val brake = Control(Kind.BRAKE, "BRAKE", Theme.RED, icon = Theme.Icon.ARROW_DOWN)
+    private val centre = Control(Kind.CENTRE, "HOLD TO CENTRE", Theme.GREY, compact = true)
+
+    private var layout = ControllerLayout.AUTO_GEARS
+    private var topLeft = bigDrs
+    private var topRight = bigClutch
     private var extras: List<Control> = emptyList()
     private var controls: List<Control> = emptyList()
     private val dead = Control(Kind.BUTTON, "", 0)        // pointer that left its control
@@ -53,69 +70,91 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
     private var lastDown = 0L
     private var centreDownAt = 0L
     private var flashUntil = 0L
-    private val gauge = SteeringGauge(dp)
 
-    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 2 * dp }
-    private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE; textAlign = Paint.Align.CENTER; isFakeBoldText = true; letterSpacing = 0.08f
+    private val gauge = SteeringGauge(dp)
+    private val painter = Theme.ButtonPainter(dp)
+    private val chip = Theme.Chip(dp)
+    private val gaugeRect = RectF()
+    private var chipTop = 0f
+    private var infoY = 0f
+    private val bg = Paint()
+    private val info = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER; typeface = Theme.CONDENSED_BOLD; letterSpacing = 0.12f; color = Theme.MUTED
     }
-    private val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(0x8A, 0x93, 0xA6); textAlign = Paint.Align.CENTER }
+
+    private val extraColors = mapOf(
+        Protocol.Button.DRS to Theme.GREEN, Protocol.Button.ERS to Theme.YELLOW,
+        Protocol.Button.CLUTCH to Theme.ORANGE, Protocol.Button.PAUSE to Theme.GREY,
+        Protocol.Button.LOOK_BACK to Theme.CYAN, Protocol.Button.FLASHBACK to Theme.PINK,
+        Protocol.Button.PIT_LIMITER to Theme.SALMON, Protocol.Button.MFD to Theme.SKY,
+    )
 
     init {
-        setBackgroundColor(Color.rgb(0x0D, 0x0F, 0x14))
         isHapticFeedbackEnabled = true
-        reloadExtras()
+        reloadSettings()
     }
 
-    fun reloadExtras() {
-        val enabled = engine.settings.extraButtons
-        val colors = mapOf(
-            Protocol.Button.DRS to Color.rgb(0x1E, 0xD7, 0x60), Protocol.Button.ERS to Color.rgb(0xFF, 0xD0, 0x00),
-            Protocol.Button.CLUTCH to Color.rgb(0xFF, 0x8A, 0x00), Protocol.Button.PAUSE to Color.rgb(0x8A, 0x93, 0xA6),
-            Protocol.Button.LOOK_BACK to Color.rgb(0x00, 0xC8, 0xE6), Protocol.Button.FLASHBACK to Color.rgb(0xE6, 0x4A, 0xFF),
-            Protocol.Button.PIT_LIMITER to Color.rgb(0xFF, 0x5A, 0x5A), Protocol.Button.MFD to Color.rgb(0x5A, 0xA0, 0xFF),
-        )
-        extras = Protocol.Button.entries.filter { it in enabled }.map { Control(Kind.BUTTON, it.label, colors[it]!!, it) }
-        controls = listOf(paddleUp, paddleDown, throttle, brake, centre) + extras
+    /** Re-reads layout and extra buttons (called on every resume). */
+    fun reloadSettings() {
+        releaseAll()
+        layout = engine.settings.layout
+        if (layout == ControllerLayout.PADDLES) { topLeft = paddleDown; topRight = paddleUp }
+        else { topLeft = bigDrs; topRight = bigClutch }
+        val hidden = if (layout == ControllerLayout.AUTO_GEARS) Settings.AUTO_LAYOUT_BIG else emptySet()
+        extras = Protocol.Button.entries
+            .filter { it in engine.settings.extraButtons && it !in hidden }
+            .map { Control(Kind.BUTTON, it.label, extraColors[it]!!, it, compact = true) }
+        controls = listOf(topLeft, topRight, throttle, brake, centre) + extras
         if (width > 0 && height > 0) layoutControls(width, height)
         invalidate()
     }
 
-    private var gaugeTop = 0f
-    private val gaugeRect = RectF()
-
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) = layoutControls(w, h)
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        bg.shader = RadialGradient(w / 2f, h / 2f, max(w, h) * 0.6f,
+            Theme.SURFACE, Theme.BG, Shader.TileMode.CLAMP)
+        layoutControls(w, h)
+    }
 
     private fun layoutControls(w: Int, h: Int) {
-        val m = 8 * dp
-        val colW = w * 0.25f
-        val split = h * 0.50f
-        paddleDown.rect.set(m, m, colW, split - m / 2)
-        brake.rect.set(m, split + m / 2, colW, h - m)
-        paddleUp.rect.set(w - colW, m, w - m, split - m / 2)
-        throttle.rect.set(w - colW, split + m / 2, w - m, h - m)
+        // Keep clear of the camera cut-out and rounded screen corners.
+        val cut = rootWindowInsets?.displayCutout
+        val base = 12 * dp
+        // Same margin on both sides so the layout stays symmetric around the camera hole.
+        val side = max(base, max(cut?.safeInsetLeft ?: 0, cut?.safeInsetRight ?: 0).toFloat())
+        val left = side
+        val right = w - side
+        val top = max(base, (cut?.safeInsetTop ?: 0).toFloat())
+        val bottom = h - max(base, (cut?.safeInsetBottom ?: 0).toFloat())
+        val gap = 10 * dp
 
-        val cl = colW + m * 1.5f
-        val cr = w - colW - m * 1.5f
+        val colW = (right - left) * 0.27f
+        val split = top + (bottom - top) * 0.44f      // pedals get the larger, lower part
+        topLeft.rect.set(left, top, left + colW, split - gap / 2)
+        brake.rect.set(left, split + gap / 2, left + colW, bottom)
+        topRight.rect.set(right - colW, top, right, split - gap / 2)
+        throttle.rect.set(right - colW, split + gap / 2, right, bottom)
+
+        val cl = left + colW + gap * 1.6f
+        val cr = right - colW - gap * 1.6f
         val cw = cr - cl
+        chipTop = top
+        var y = top + 30 * dp
         if (extras.isNotEmpty()) {
             val perRow = if (extras.size > 4) (extras.size + 1) / 2 else extras.size
             val rows = (extras.size + perRow - 1) / perRow
-            val bh = min(h * 0.13f, 56 * dp)
-            val bw = (cw - (perRow - 1) * m) / perRow
+            val bh = min((bottom - top) * 0.12f, 46 * dp)
+            val bw = (cw - (perRow - 1) * gap * 0.8f) / perRow
             extras.forEachIndexed { i, c ->
-                val r = i / perRow
-                val col = i % perRow
-                val x = cl + col * (bw + m)
-                val y = m + r * (bh + m)
-                c.rect.set(x, y, x + bw, y + bh)
+                val x = cl + (i % perRow) * (bw + gap * 0.8f)
+                val yy = y + (i / perRow) * (bh + gap * 0.8f)
+                c.rect.set(x, yy, x + bw, yy + bh)
             }
-            gaugeTop = m + rows * (bh + m) + m
-        } else gaugeTop = m
-        val ch = min(44 * dp, h * 0.11f)
-        centre.rect.set(cl + cw * 0.25f, h - m - ch, cr - cw * 0.25f, h - m)
-        gaugeRect.set(cl, gaugeTop, cr, centre.rect.top - m)
+            y += rows * (bh + gap * 0.8f)
+        }
+        val ch = min(40 * dp, (bottom - top) * 0.1f)
+        centre.rect.set(cl + cw * 0.22f, bottom - ch, cr - cw * 0.22f, bottom)
+        infoY = centre.rect.top - gap
+        gaugeRect.set(cl, y + gap * 0.5f, cr, infoY - 16 * dp)
     }
 
     // ------------------------------------------------------------------ touch
@@ -216,57 +255,41 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
             flashUntil = now + 800
             haptic()
         }
-        // paddles flash briefly on each shift
-        paddleUp.value = if (now - lastUp < 150) 1f else 0f
-        paddleDown.value = if (now - lastDown < 150) 1f else 0f
+        canvas.drawPaint(bg)
 
-        for (c in controls) drawControl(canvas, c, now)
+        // paddles light up briefly on each shift, even for a very short tap
+        val upFlash = now - lastUp < 150
+        val downFlash = now - lastDown < 150
+        for (c in controls) {
+            val pressed = c.pressed || (c === paddleUp && upFlash) || (c === paddleDown && downFlash)
+            val pedal = c.kind == Kind.THROTTLE || c.kind == Kind.BRAKE
+            val progress = if (c.kind == Kind.CENTRE && centreDownAt != 0L)
+                ((now - centreDownAt) / 600f).coerceIn(0f, 1f) else 0f
+            painter.draw(canvas, c.rect, c.color, pressed && c.kind != Kind.CENTRE, c.label,
+                subLabel = if (pedal) "${(c.value * 100).toInt()}%" else c.sub,
+                icon = c.icon, level = if (pedal && c.pressed) c.value else -1f,
+                progress = progress, compact = c.compact)
+        }
 
         val link = engine.link
-        val status = when {
-            !engine.sensorHealthy() -> Pair("SENSOR STOPPED", Color.RED)
-            link.status == UdpLink.Status.CONNECTED && link.controllerOk -> Pair("LIVE", Color.rgb(0x1E, 0xD7, 0x60))
-            link.status == UdpLink.Status.CONNECTED -> Pair("PC HAS NO CONTROLLER", Color.rgb(0xFF, 0xB0, 0x00))
-            link.status == UdpLink.Status.STOPPED -> Pair("NOT CONNECTED", Color.RED)
-            else -> Pair("CONNECTING…", Color.rgb(0xFF, 0xB0, 0x00))
+        val (text, color) = when {
+            !engine.sensorHealthy() -> Pair("SENSOR STOPPED", Theme.RED)
+            link.status == UdpLink.Status.CONNECTED && link.controllerOk -> Pair("LIVE", Theme.GREEN)
+            link.status == UdpLink.Status.CONNECTED -> Pair("PC HAS NO CONTROLLER", Theme.AMBER)
+            link.status == UdpLink.Status.STOPPED -> Pair("NOT CONNECTED", Theme.RED)
+            else -> Pair("CONNECTING…", Theme.AMBER)
         }
-        val rtt = link.rttMs?.let { "  ·  ${"%.0f".format(Locale.US, it)} ms" } ?: ""
-        gauge.draw(canvas, gaugeRect, engine.filteredAngleDeg, engine.steer,
-            "${status.first}$rtt", status.second,
-            "▲ ${engine.gearUp.get()}   ▼ ${engine.gearDown.get()}   ·   ${engine.sensor.rate.hz.toInt()} Hz",
-            flash = now < flashUntil)
-        postInvalidateOnAnimation()
-    }
+        val rtt = link.rttMs?.let { String.format(Locale.US, "  ·  %.0f ms", it) } ?: ""
+        chip.draw(canvas, gaugeRect.centerX(), chipTop, text + rtt, color)
 
-    private fun drawControl(canvas: Canvas, c: Control, now: Long) {
-        val r = 18 * dp
-        val active = c.pressed || c.value > 0f
-        fill.color = if (active) c.color else Color.argb(0x33, Color.red(c.color), Color.green(c.color), Color.blue(c.color))
-        canvas.drawRoundRect(c.rect, r, r, fill)
-        stroke.color = c.color
-        canvas.drawRoundRect(c.rect, r, r, stroke)
-        if ((c.kind == Kind.THROTTLE || c.kind == Kind.BRAKE) && c.pressed &&
-            engine.settings.pedalMode == PedalMode.ANALOG) {
-            fill.color = Color.argb(0x55, 0, 0, 0)
-            val top = c.rect.bottom - c.rect.height() * c.value
-            canvas.drawRoundRect(c.rect.left, c.rect.top, c.rect.right, top, r, r, fill)
-        }
-        if (c.kind == Kind.CENTRE && centreDownAt != 0L) {
-            val p = ((now - centreDownAt) / 600f).coerceIn(0f, 1f)
-            fill.color = Color.rgb(0x2F, 0x8B, 0xFF)
-            canvas.drawRoundRect(c.rect.left, c.rect.top, c.rect.left + c.rect.width() * p, c.rect.bottom, r, r, fill)
-        }
-        val size = when (c.kind) {
-            Kind.BUTTON, Kind.CENTRE -> min(c.rect.height() * 0.32f, c.rect.width() / max(c.label.length, 4) * 1.5f)
-            else -> min(c.rect.width() / 7f, 26 * dp)
-        }
-        text.textSize = size
-        text.color = if (active && c.kind != Kind.CENTRE) Color.BLACK else Color.WHITE
-        canvas.drawText(c.label, c.rect.centerX(), c.rect.centerY() + size / 3, text)
-        if (c.kind == Kind.THROTTLE || c.kind == Kind.BRAKE) {
-            small.textSize = 13 * dp
-            small.color = if (active) Color.BLACK else Color.rgb(0x8A, 0x93, 0xA6)
-            canvas.drawText("${(c.value * 100).toInt()}%", c.rect.centerX(), c.rect.centerY() + size / 3 + 22 * dp, small)
-        }
+        gauge.draw(canvas, gaugeRect, engine.filteredAngleDeg, engine.steer, flash = now < flashUntil)
+
+        info.textSize = 11 * dp
+        val hz = "${engine.sensor.rate.hz.toInt()} Hz"
+        canvas.drawText(
+            if (layout == ControllerLayout.PADDLES) "GEARS  ▲ ${engine.gearUp.get()}  ▼ ${engine.gearDown.get()}   ·   $hz"
+            else "AUTO GEARS   ·   $hz",
+            gaugeRect.centerX(), infoY, info)
+        postInvalidateOnAnimation()
     }
 }

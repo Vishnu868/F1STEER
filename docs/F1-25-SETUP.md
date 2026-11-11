@@ -77,9 +77,9 @@ Make sure no other action is bound to the same Xbox button. Unbind duplicates in
 
 ## 4. Gearbox
 
-* **Automatic gears** (what you plan to use): *Settings → Assists → Gearbox: Automatic*.
-  The paddles are then not needed, but leaving them mapped does no harm.
-* **Manual with paddles:** *Gearbox: Manual*. The right paddle shifts up exactly one gear per
+* **Automatic gears:** *Settings → Assists → Gearbox: Automatic*, and choose the
+  **Auto gears** layout in the phone app (big DRS and CLUTCH buttons instead of paddles).
+* **Manual with paddles:** *Gearbox: Manual*, and choose the **Paddle shift** layout. The right paddle shifts up exactly one gear per
   tap and the left paddle down one gear per tap. Repeated taps queue up to 4 shifts,
   60 ms apart.
 
