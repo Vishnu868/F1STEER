@@ -10,6 +10,8 @@ New-Item -ItemType Directory -Force $out | Out-Null
 $apk = Get-ChildItem -Recurse "$root\android-app\app\build\outputs\apk" -Filter *.apk | Sort-Object LastWriteTime | Select-Object -Last 1
 Copy-Item $apk.FullName "$out\DIYF1Wheel-$ver.apk" -Force
 Compress-Archive -Path "$root\windows-receiver\dist\F1WheelReceiver" -DestinationPath "$out\F1WheelReceiver-windows-$ver.zip" -Force
-Get-ChildItem $out -Exclude SHA256SUMS.txt | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } |
-    Set-Content -Encoding ascii "$out\SHA256SUMS.txt"
+# LF line endings so `sha256sum -c SHA256SUMS.txt` works on Linux/macOS too.
+$sums = Get-ChildItem $out -Exclude SHA256SUMS.txt | Get-FileHash -Algorithm SHA256 |
+    ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)`n" }
+[System.IO.File]::WriteAllText("$out\SHA256SUMS.txt", -join $sums)
 Get-ChildItem $out | Format-Table Name, Length
