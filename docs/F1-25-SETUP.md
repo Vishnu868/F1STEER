@@ -4,9 +4,11 @@ The receiver creates a standard **Xbox 360 controller**. F1 25 supports Xbox con
 natively, so the game treats your phone wheel as a gamepad: steering on the left stick,
 throttle on RT, brake on LT, everything else on buttons.
 
-> **Not yet verified in game.** Everything below is the planned procedure. The virtual
-> controller itself is verified working in Windows (XInput). The final in-game check is
-> TEST 6 in [TESTING.md](TESTING.md), done on the gaming laptop.
+> **Verified in game** (TEST 6 in [TESTING.md](TESTING.md)): EA app version, *Auto gears*
+> layout, automatic gearbox. Tip from that test: the default *Balanced* steering (90° full
+> lock) needs a lot of phone rotation in F1 25; start with the **Sensitive** preset (60°) or a
+> smaller full lock on the phone. Use keyboard / mouse for the game menus: the phone pad has
+> no up / down input to move menu focus.
 
 Menu names below follow the F1 25 PC menus as documented publicly. If a label differs
 slightly in your version, look for the closest match.
