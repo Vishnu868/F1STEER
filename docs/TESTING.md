@@ -34,11 +34,11 @@ Measured with `tools/xinput_recorder.py`, which reads the virtual pad through Wi
 | 7. Screen lock while holding throttle | ✅ | Throttle 0 within 647 ms. Android pauses the app only after the screen-off animation |
 | 7. Notification shade while holding throttle | ✅ | Throttle 0 within 509 ms when opened by command (window-focus path). A real finger swipe also cancels the touch immediately |
 | 7. Wrong PIN | ✅ (unit test) | Not repeated on the phone. Covered by `test_wrong_pin_ignored` and the Kotlin `rejectsWrongPin` test |
-| 6. F1 25 in game | ⬜ (in progress) | Gaming-laptop setup and pre-game XInput check passed; in-game drive not done yet. See the log below |
+| 6. F1 25 in game | ✅ | Gaming laptop, EA app version, app 1.1.0 *Auto gears* layout over USB tethering: first-drive checklist passed. See the log below |
 
 Status-bar overlap found on Android 16 (edge-to-edge): fixed and verified on the device.
 
-## Hardware test log: 2026-11-11, TEST 6 on the gaming laptop (in progress)
+## Hardware test log: 2026-11-11, TEST 6 on the gaming laptop
 
 Nothing Phone (2) (Android 16, app 1.0.0) → gaming laptop (Windows 11 Home 26300, AMD) over USB tethering.
 Release v1.0.0 receiver, ViGEmBus 1.22.0.
@@ -50,8 +50,10 @@ Release v1.0.0 receiver, ViGEmBus 1.22.0.
 | USB tethering | ✅ after driver fix | Phone (Qualcomm `VID_05C6&PID_9024`, RNDIS + ADB) was claimed whole by a Google/Acer ADB driver shown as *ACER ADB Interface*, so no network adapter appeared. Fix: Device Manager → *ACER Device* → *ACER ADB Interface* → Update driver → pick *USB Composite Device*. Then *Remote NDIS Compatible Device* appeared; network set to Private |
 | Discovery / pairing | ✅ with manual IP | *Find laptop* did not reach the receiver while the laptop was also on the phone's Wi-Fi hotspot; entering the USB IP and port 47800 by hand connected. Receiver log: `Phone connected … from 10.68.159.128`, `Phone input live` |
 | Pre-game XInput check (`xinput_recorder.py`) | ✅ | One pad (slot 0), 10 599 samples / 64 s: steering −100 % … +100 % (1033 distinct values), centre rests +0.0 / +0.0 / +0.0 / −0.3 %, throttle and brake 100 %, A 3×, X 2×, Y 1× for 3 UP, 2 DOWN, 1 DRS taps |
-| F1 25 controller setup and bindings | ⬜ | Game showed *No network connection* at start-up (laptop internet was working over the tether). The phone pad cannot move menu focus down (no stick Y / D-pad down), so use keyboard and mouse in menus |
-| First-drive checklist (F1-25-SETUP.md §6) | ⬜ | Not run yet |
+| App 1.1.0 *Auto gears* layout, XInput check | ✅ | 12 799 samples / 76 s: steering −100 % … +73 % (right not turned to full lock), centre rests +0.0 / −0.2 / +0.0 / +0.1 %, throttle and brake 100 %, DRS → Y once per tap (throttle stayed at 100 % during the taps made while holding it), CLUTCH → LB held 2.8 s, no A / X |
+| F1 25 controller setup and bindings | ✅ | Game showed *No network connection* once at start-up (laptop internet was working over the tether). The phone pad cannot move menu focus down (no stick Y / D-pad down), so use keyboard and mouse in menus |
+| First-drive checklist (F1-25-SETUP.md §6) | ✅ | Automatic gearbox: car straight with wheel centred, smooth to full lock, throttle / brake, DRS, USB tethering cut → car coasts and app returns to LIVE. Paddle-shift item not applicable to the *Auto gears* layout |
+| Steering feel | Tuned | Default *Balanced* preset (90° full lock, curve 1.3) needed too much phone rotation in game; reduced on the phone (exact values not recorded) |
 
 Notes for the docs: the Windows firewall prompt created the receiver rule for Private **and** Public; untick Public afterwards.
 

@@ -52,7 +52,7 @@ No wheel yet? Hold the phone upright like a steering pad and turn it. It works t
 | Receiver: protocol, pairing, timeout/neutral, gear-shift dedup under packet loss | ✅ verified (unit + end-to-end tests over real UDP) |
 | Android app: protocol (golden bytes shared with Python), steering math | ✅ verified (JVM unit tests) |
 | Android app on a real phone (Nothing Phone (2), Android 16) | ✅ verified: steering, centring, pedals, paddles, disconnect safety, auto-reconnect ([log](docs/TESTING.md)) |
-| F1 25 in-game | ⬜ pending: test 6 on the gaming laptop |
+| F1 25 in-game (EA app, *Auto gears* layout) | ✅ verified: steering, throttle, brake, DRS, disconnect safety ([log](docs/TESTING.md)) |
 
 ## Repository layout
 
