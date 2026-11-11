@@ -1,0 +1,2 @@
+# Runtime: virtual Xbox 360 controller via the ViGEmBus driver
+vgamepad==0.2.0

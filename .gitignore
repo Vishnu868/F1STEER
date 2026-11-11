@@ -1,0 +1,20 @@
+# Local toolchain (JDK, Gradle, Android SDK) - not committed
+.toolchain/
+# Android
+android-app/.gradle/
+android-app/build/
+android-app/app/build/
+android-app/local.properties
+*.keystore
+# Python
+__pycache__/
+*.pyc
+windows-receiver/build/
+windows-receiver/dist/
+windows-receiver/.venv/
+*.spec.bak
+# Release outputs are attached to GitHub Releases, not committed
+release/
+# Signing secrets - back these up privately, never commit
+keystore/
+android-app/keystore.properties

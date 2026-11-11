@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Wheel" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">#E10600</item>
+        <item name="android:colorAccent">#E10600</item>
+        <item name="android:colorBackground">#0D0F14</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:statusBarColor">#0D0F14</item>
+        <item name="android:navigationBarColor">#0D0F14</item>
+    </style>
+    <style name="Theme.Wheel.Fullscreen">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+    <color name="bg">#0D0F14</color>
+</resources>
