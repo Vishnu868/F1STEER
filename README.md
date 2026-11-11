@@ -1,6 +1,6 @@
 # DIY F1 Wheel
 
-Turn an Android phone and a piece of cardboard into an **analog racing wheel** for
+Turn an Android phone into an **analog racing wheel** for
 EA SPORTS F1 25 (and other PC racing games that accept an Xbox controller).
 
 * **Steering** from the phone's gyroscope: true analog, drift-corrected by gravity,
