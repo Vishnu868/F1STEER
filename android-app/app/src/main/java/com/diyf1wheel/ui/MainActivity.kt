@@ -86,6 +86,13 @@ class MainActivity : Activity() {
     private fun build(): View {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(px(16), px(16), px(16), px(24)) }
         val scroll = ScrollView(this).apply { setBackgroundColor(BG); addView(root) }
+        // Android 15+ draws apps edge-to-edge: keep content clear of the status/navigation bars.
+        scroll.setOnApplyWindowInsetsListener { v, insets ->
+            @Suppress("DEPRECATION")
+            v.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop,
+                insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
+            insets
+        }
 
         // header
         root.addView(LinearLayout(this).apply {

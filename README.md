@@ -50,7 +50,7 @@ No wheel yet? Hold the phone upright like a steering pad and turn it. It works t
 | Virtual Xbox controller (ViGEmBus), analog axes + buttons, read back through Windows XInput | ✅ verified |
 | Receiver: protocol, pairing, timeout/neutral, gear-shift dedup under packet loss | ✅ verified (unit + end-to-end tests over real UDP) |
 | Android app: protocol (golden bytes shared with Python), steering math | ✅ verified (JVM unit tests) |
-| Android app on a real phone | ⬜ pending: [TESTING.md](docs/TESTING.md) tests 1-3, 5, 7 |
+| Android app on a real phone (Nothing Phone (2), Android 16) | ✅ verified: steering, centring, pedals, paddles, disconnect safety, auto-reconnect ([log](docs/TESTING.md)) |
 | F1 25 in-game | ⬜ pending: test 6 on the gaming laptop |
 
 ## Repository layout
