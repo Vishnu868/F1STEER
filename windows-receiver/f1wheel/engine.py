@@ -281,7 +281,7 @@ class Receiver:
                 btns.add(m["gear_down"])
             for name, bit in P.BUTTON_BIT.items():
                 if self.buttons & bit:
-                    btns.add(m.get(name, "NONE"))
+                    btns.add(P.PAD_XBOX.get(name) or m.get(name, "NONE"))
             btns.discard("NONE")
             steer = -self.steer if self.cfg.invert_steering else self.steer
             return (steer, self.throttle, self.brake, frozenset(btns))

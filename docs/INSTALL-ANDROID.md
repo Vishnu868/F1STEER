@@ -57,7 +57,13 @@ Also on the driving screen:
   Auto gears, DRS and Clutch aren't repeated there.
 * Middle: the steering arc. It fills left or right from 12 o'clock and shows the percentage
   and the physical wheel angle; it turns red at full lock.
-* Bottom centre: **HOLD TO CENTRE** (hold 0.6 s to re-centre).
+* Bottom centre: **HOLD TO CENTRE** (hold 0.6 s to re-centre) and **PAD**.
+* **PAD mode** (tap PAD, or tap PAUSE): the screen becomes a plain gamepad for the game's
+  menus: a D-pad on the left, **A / B / X / Y** on the right (Xbox colours: A = select,
+  B = back), **START** and **BACK** in the middle. Steering and pedals are switched off while
+  the pad is up, so turning the wheel can't move the menu cursor. Tap **BACK TO DRIVING** to
+  race again. These buttons always send the Xbox button of the same name; they aren't
+  affected by the receiver's button mapping.
 * Back gesture → returns to setup. Input to the game stops immediately (neutral).
 
 The screen stays on while the app is open. Input is only sent to the game while the

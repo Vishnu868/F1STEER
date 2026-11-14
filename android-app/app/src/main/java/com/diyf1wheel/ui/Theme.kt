@@ -63,7 +63,8 @@ object Theme {
          * [progress] 0..1 draws a left-to-right fill (hold-to-confirm).
          */
         fun draw(c: Canvas, r: RectF, color: Int, pressed: Boolean, label: String, subLabel: String = "",
-                 icon: Icon = Icon.NONE, level: Float = -1f, progress: Float = 0f, compact: Boolean = false) {
+                 icon: Icon = Icon.NONE, level: Float = -1f, progress: Float = 0f, compact: Boolean = false,
+                 titleScale: Float = 1f) {
             val radius = if (compact) 14 * dp else 22 * dp
             if (pressed) {
                 glow.strokeWidth = 10 * dp
@@ -101,7 +102,7 @@ object Theme {
             val ink = if (pressed) Color.BLACK else TEXT
             val h = r.height()
             val titleSize = if (compact) minOf(h * 0.36f, r.width() / maxOf(label.length, 3) * 1.3f, 17 * dp)
-                            else minOf(h * 0.17f, r.width() / maxOf(label.length, 4) * 1.45f, 34 * dp)
+                            else minOf(h * 0.17f * titleScale, r.width() / maxOf(label.length, 4) * 1.45f * titleScale, 34 * dp * titleScale)
             title.textSize = titleSize
             title.color = ink
             val hasIcon = icon != Icon.NONE && !compact && h > 90 * dp

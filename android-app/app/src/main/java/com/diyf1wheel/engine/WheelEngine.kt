@@ -53,6 +53,12 @@ class WheelEngine(private val context: Context) {
     @Volatile var driving = false
         private set
 
+    /**
+     * PAD mode: the driving screen shows a gamepad (D-pad, A/B/X/Y, START, BACK) for the
+     * game's menus. Steering and pedals are sent as neutral so the gyro can't move the cursor.
+     */
+    @Volatile var padMode = false
+
     val calibrated get() = when (sensor.mode) {
         SteeringSensor.Mode.GRAVITY -> neutralGravity != null
         else -> neutral != null
@@ -99,7 +105,7 @@ class WheelEngine(private val context: Context) {
 
     fun setDriving(on: Boolean) {
         driving = on
-        if (!on) clearInputs()
+        if (!on) { clearInputs(); padMode = false }
         else if (!calibrated) pendingAutoCentre = true  // first run: first sample = centre
     }
 
@@ -190,15 +196,16 @@ class WheelEngine(private val context: Context) {
     private fun buildState(phoneMs: Long, rtt: Float?): Protocol.State {
         val healthy = sensorHealthy()
         val active = driving && healthy && calibrated
+        val axes = active && !padMode
         var flags = 0
         if (active) flags = flags or Protocol.F_ACTIVE
         if (healthy) flags = flags or Protocol.F_SENSOR_OK
         if (calibrated) flags = flags or Protocol.F_CALIBRATED
         return Protocol.State(
             phoneMs = phoneMs,
-            steer = if (active) steer.toFloat() else 0f,
-            throttle = if (active) throttle else 0f,
-            brake = if (active) brake else 0f,
+            steer = if (axes) steer.toFloat() else 0f,
+            throttle = if (axes) throttle else 0f,
+            brake = if (axes) brake else 0f,
             buttons = if (active) buttons.get() else 0,
             gearUp = gearUp.get(),
             gearDown = gearDown.get(),

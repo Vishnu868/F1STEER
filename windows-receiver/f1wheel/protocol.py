@@ -50,6 +50,9 @@ F_SENSOR_OK = 0x02   # a rotation sensor is delivering samples
 F_CALIBRATED = 0x04  # neutral position has been set
 
 # Button bits (held state). Gear shifts are NOT here: they are counters.
+# Bits 0-7: racing functions, re-mappable in the receiver settings.
+# Bits 8-17: the phone's PAD mode (menu navigation). These are fixed to the Xbox
+# button of the same name so the game's own prompts (A = select, B = back) stay true.
 BUTTONS = [
     "drs",
     "ers",
@@ -59,8 +62,26 @@ BUTTONS = [
     "flashback",
     "pit_limiter",
     "mfd",
+    "pad_a",
+    "pad_b",
+    "pad_x",
+    "pad_y",
+    "dpad_up",
+    "dpad_down",
+    "dpad_left",
+    "dpad_right",
+    "start",
+    "back",
 ]
 BUTTON_BIT = {name: 1 << i for i, name in enumerate(BUTTONS)}
+RACING_BUTTONS = BUTTONS[:8]
+PAD_BUTTONS = BUTTONS[8:]
+# Fixed Xbox button for every PAD button (not user-mappable).
+PAD_XBOX = {
+    "pad_a": "A", "pad_b": "B", "pad_x": "X", "pad_y": "Y",
+    "dpad_up": "DPAD_UP", "dpad_down": "DPAD_DOWN", "dpad_left": "DPAD_LEFT", "dpad_right": "DPAD_RIGHT",
+    "start": "START", "back": "BACK",
+}
 
 RTT_UNKNOWN = 0xFFFF
 

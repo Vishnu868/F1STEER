@@ -36,12 +36,13 @@ import kotlin.math.min
  */
 class DriveView(context: Context, private val engine: WheelEngine) : View(context) {
 
-    private enum class Kind { PADDLE_UP, PADDLE_DOWN, THROTTLE, BRAKE, BUTTON, CENTRE }
+    private enum class Kind { PADDLE_UP, PADDLE_DOWN, THROTTLE, BRAKE, BUTTON, CENTRE, TO_PAD, TO_DRIVE }
 
     private class Control(
         val kind: Kind, val label: String, val color: Int,
         val button: Protocol.Button? = null, val sub: String = "",
         val icon: Theme.Icon = Theme.Icon.NONE, val compact: Boolean = false,
+        val titleScale: Float = 1f,
     ) {
         val rect = RectF()
         var pressed = false
@@ -57,12 +58,29 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
     private val throttle = Control(Kind.THROTTLE, "THROTTLE", Theme.GREEN, icon = Theme.Icon.ARROW_UP)
     private val brake = Control(Kind.BRAKE, "BRAKE", Theme.RED, icon = Theme.Icon.ARROW_DOWN)
     private val centre = Control(Kind.CENTRE, "HOLD TO CENTRE", Theme.GREY, compact = true)
+    private val toPad = Control(Kind.TO_PAD, "PAD", Theme.SKY, compact = true)
+
+    // PAD mode: a plain gamepad for the game's menus (Xbox colours, Xbox names).
+    private val padA = Control(Kind.BUTTON, "A", Theme.GREEN, Protocol.Button.PAD_A, sub = "SELECT", titleScale = 2.4f)
+    private val padB = Control(Kind.BUTTON, "B", Theme.RED, Protocol.Button.PAD_B, sub = "BACK", titleScale = 2.4f)
+    private val padX = Control(Kind.BUTTON, "X", Theme.BLUE, Protocol.Button.PAD_X, titleScale = 2.4f)
+    private val padY = Control(Kind.BUTTON, "Y", Theme.YELLOW, Protocol.Button.PAD_Y, titleScale = 2.4f)
+    private val dUp = Control(Kind.BUTTON, "▲", Theme.GREY, Protocol.Button.DPAD_UP, titleScale = 2f)
+    private val dDown = Control(Kind.BUTTON, "▼", Theme.GREY, Protocol.Button.DPAD_DOWN, titleScale = 2f)
+    private val dLeft = Control(Kind.BUTTON, "◀", Theme.GREY, Protocol.Button.DPAD_LEFT, titleScale = 2f)
+    private val dRight = Control(Kind.BUTTON, "▶", Theme.GREY, Protocol.Button.DPAD_RIGHT, titleScale = 2f)
+    private val padStart = Control(Kind.BUTTON, "START", Theme.SKY, Protocol.Button.START, compact = true)
+    private val padBack = Control(Kind.BUTTON, "BACK", Theme.GREY, Protocol.Button.BACK, compact = true)
+    private val toDrive = Control(Kind.TO_DRIVE, "BACK TO DRIVING", Theme.GREEN, compact = true)
+    private val padControls = listOf(dUp, dDown, dLeft, dRight, padY, padX, padB, padA, padBack, padStart, toDrive)
 
     private var layout = ControllerLayout.AUTO_GEARS
     private var topLeft = bigDrs
     private var topRight = bigClutch
     private var extras: List<Control> = emptyList()
+    private var driveControls: List<Control> = emptyList()
     private var controls: List<Control> = emptyList()
+    private var padMode = false
     private val dead = Control(Kind.BUTTON, "", 0)        // pointer that left its control
 
     private val pointers = SparseArray<Control>()
@@ -94,17 +112,26 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
         reloadSettings()
     }
 
-    /** Re-reads layout and extra buttons (called on every resume). */
+    /** Re-reads layout and extra buttons (called on every resume). Always starts in driving mode. */
     fun reloadSettings() {
         releaseAll()
         layout = engine.settings.layout
         if (layout == ControllerLayout.PADDLES) { topLeft = paddleDown; topRight = paddleUp }
         else { topLeft = bigDrs; topRight = bigClutch }
         val hidden = if (layout == ControllerLayout.AUTO_GEARS) Settings.AUTO_LAYOUT_BIG else emptySet()
-        extras = Protocol.Button.entries
+        extras = Protocol.Button.RACING
             .filter { it in engine.settings.extraButtons && it !in hidden }
             .map { Control(Kind.BUTTON, it.label, extraColors[it]!!, it, compact = true) }
-        controls = listOf(topLeft, topRight, throttle, brake, centre) + extras
+        driveControls = listOf(topLeft, topRight, throttle, brake, centre, toPad) + extras
+        setPadMode(false)
+    }
+
+    /** Switches between the racing controls and the menu gamepad. Releases everything first. */
+    private fun setPadMode(on: Boolean) {
+        releaseAll()
+        padMode = on
+        engine.padMode = on
+        controls = if (on) padControls else driveControls
         if (width > 0 && height > 0) layoutControls(width, height)
         invalidate()
     }
@@ -116,6 +143,47 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
     }
 
     private fun layoutControls(w: Int, h: Int) {
+        if (padMode) layoutPad(w, h) else layoutDrive(w, h)
+    }
+
+    /** PAD mode: D-pad cross on the left, A/B/X/Y diamond on the right, START / BACK in the middle. */
+    private fun layoutPad(w: Int, h: Int) {
+        val cut = rootWindowInsets?.displayCutout
+        val base = 12 * dp
+        val side = max(base, max(cut?.safeInsetLeft ?: 0, cut?.safeInsetRight ?: 0).toFloat())
+        val left = side
+        val right = w - side
+        val top = max(base, (cut?.safeInsetTop ?: 0).toFloat())
+        val bottom = h - max(base, (cut?.safeInsetBottom ?: 0).toFloat())
+        val gap = 4 * dp
+
+        // one cell of the cross / diamond
+        val s = min((bottom - top) * 0.3f, (right - left) * 0.11f)
+        val cy = (top + bottom) / 2 + 6 * dp
+        fun cross(cx: Float, up: Control, down: Control, lft: Control, rgt: Control) {
+            up.rect.set(cx - s / 2 + gap, cy - 1.5f * s + gap, cx + s / 2 - gap, cy - 0.5f * s - gap)
+            down.rect.set(cx - s / 2 + gap, cy + 0.5f * s + gap, cx + s / 2 - gap, cy + 1.5f * s - gap)
+            lft.rect.set(cx - 1.5f * s + gap, cy - s / 2 + gap, cx - 0.5f * s - gap, cy + s / 2 - gap)
+            rgt.rect.set(cx + 0.5f * s + gap, cy - s / 2 + gap, cx + 1.5f * s - gap, cy + s / 2 - gap)
+        }
+        cross(left + 1.5f * s, dUp, dDown, dLeft, dRight)
+        cross(right - 1.5f * s, padY, padA, padX, padB)
+
+        val cl = left + 3f * s + gap * 4
+        val cr = right - 3f * s - gap * 4
+        val cw = cr - cl
+        chipTop = top
+        val bh = min(46 * dp, (bottom - top) * 0.14f)
+        val bw = min(cw * 0.42f, 150 * dp)
+        padBack.rect.set(cl + cw / 2 - bw - 5 * dp, cy - bh / 2, cl + cw / 2 - 5 * dp, cy + bh / 2)
+        padStart.rect.set(cl + cw / 2 + 5 * dp, cy - bh / 2, cl + cw / 2 + bw + 5 * dp, cy + bh / 2)
+        val ch = min(40 * dp, (bottom - top) * 0.1f)
+        toDrive.rect.set(cl + cw * 0.1f, bottom - ch, cr - cw * 0.1f, bottom)
+        infoY = toDrive.rect.top - 10 * dp
+        gaugeRect.set(cl, top, cr, infoY)
+    }
+
+    private fun layoutDrive(w: Int, h: Int) {
         // Keep clear of the camera cut-out and rounded screen corners.
         val cut = rootWindowInsets?.displayCutout
         val base = 12 * dp
@@ -152,7 +220,8 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
             y += rows * (bh + gap * 0.8f)
         }
         val ch = min(40 * dp, (bottom - top) * 0.1f)
-        centre.rect.set(cl + cw * 0.22f, bottom - ch, cr - cw * 0.22f, bottom)
+        centre.rect.set(cl + cw * 0.08f, bottom - ch, cl + cw * 0.64f, bottom)
+        toPad.rect.set(cl + cw * 0.68f, bottom - ch, cr - cw * 0.08f, bottom)
         infoY = centre.rect.top - gap
         gaugeRect.set(cl, y + gap * 0.5f, cr, infoY - 16 * dp)
     }
@@ -193,6 +262,7 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
             }
             MotionEvent.ACTION_CANCEL -> releaseAll()
         }
+        switchTo?.let { on -> switchTo = null; setPadMode(on) }
         invalidate()
         return true
     }
@@ -215,6 +285,7 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
             Kind.THROTTLE, Kind.BRAKE -> setPedal(c, y)
             Kind.BUTTON -> { engine.setButton(c.button!!, true); haptic() }
             Kind.CENTRE -> centreDownAt = now
+            Kind.TO_PAD, Kind.TO_DRIVE -> haptic()
         }
     }
 
@@ -228,14 +299,22 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
         if (c.kind == Kind.THROTTLE) engine.throttle = v else engine.brake = v
     }
 
+    private var switchTo: Boolean? = null   // mode change requested by a touch, applied after the event
+
     private fun release(c: Control) {
         c.pressed = false
         c.value = 0f
         when (c.kind) {
             Kind.THROTTLE -> engine.throttle = 0f
             Kind.BRAKE -> engine.brake = 0f
-            Kind.BUTTON -> engine.setButton(c.button!!, false)
+            Kind.BUTTON -> {
+                engine.setButton(c.button!!, false)
+                // PAUSE opens the game's menu, so the gamepad is what you need next.
+                if (c.button == Protocol.Button.PAUSE && !padMode) switchTo = true
+            }
             Kind.CENTRE -> centreDownAt = 0L
+            Kind.TO_PAD -> switchTo = true
+            Kind.TO_DRIVE -> switchTo = false
             else -> {}
         }
     }
@@ -243,6 +322,7 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
     fun releaseAll() {
         controls.forEach { if (it.pressed) release(it) }
         pointers.clear()
+        switchTo = null
         engine.clearInputs()
     }
 
@@ -268,7 +348,7 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
             painter.draw(canvas, c.rect, c.color, pressed && c.kind != Kind.CENTRE, c.label,
                 subLabel = if (pedal) "${(c.value * 100).toInt()}%" else c.sub,
                 icon = c.icon, level = if (pedal && c.pressed) c.value else -1f,
-                progress = progress, compact = c.compact)
+                progress = progress, compact = c.compact, titleScale = c.titleScale)
         }
 
         val link = engine.link
@@ -282,14 +362,26 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
         val rtt = link.rttMs?.let { String.format(Locale.US, "  ·  %.0f ms", it) } ?: ""
         chip.draw(canvas, gaugeRect.centerX(), chipTop, text + rtt, color)
 
-        gauge.draw(canvas, gaugeRect, engine.filteredAngleDeg, engine.steer, flash = now < flashUntil)
-
         info.textSize = 11 * dp
-        val hz = "${engine.sensor.rate.hz.toInt()} Hz"
-        canvas.drawText(
-            if (layout == ControllerLayout.PADDLES) "GEARS  ▲ ${engine.gearUp.get()}  ▼ ${engine.gearDown.get()}   ·   $hz"
-            else "AUTO GEARS   ·   $hz",
-            gaugeRect.centerX(), infoY, info)
+        if (padMode) {
+            // No steering arc: the wheel is deliberately ignored while the pad is up.
+            val cx = gaugeRect.centerX()
+            info.color = Theme.TEXT
+            info.textSize = 15 * dp
+            canvas.drawText("PAD MODE", cx, chipTop + 56 * dp, info)
+            info.color = Theme.MUTED
+            info.textSize = 11 * dp
+            canvas.drawText("STEERING AND PEDALS OFF", cx, chipTop + 74 * dp, info)
+            canvas.drawText("A = SELECT   ·   B = BACK   ·   START = PAUSE / RESUME", cx, infoY, info)
+        } else {
+            gauge.draw(canvas, gaugeRect, engine.filteredAngleDeg, engine.steer, flash = now < flashUntil)
+            val hz = "${engine.sensor.rate.hz.toInt()} Hz"
+            info.color = Theme.MUTED
+            canvas.drawText(
+                if (layout == ControllerLayout.PADDLES) "GEARS  ▲ ${engine.gearUp.get()}  ▼ ${engine.gearDown.get()}   ·   $hz"
+                else "AUTO GEARS   ·   $hz",
+                gaugeRect.centerX(), infoY, info)
+        }
         postInvalidateOnAnimation()
     }
 }

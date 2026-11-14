@@ -108,7 +108,7 @@ class Settings(context: Context) {
     var extraButtons: Set<Protocol.Button>
         get() {
             val raw = p.getStringSet("extras", null) ?: return DEFAULT_EXTRAS
-            return raw.mapNotNull { runCatching { Protocol.Button.valueOf(it) }.getOrNull() }.toSet()
+            return raw.mapNotNull { runCatching { Protocol.Button.valueOf(it) }.getOrNull() }.filter { !it.pad }.toSet()
         }
         set(v) = p.edit().putStringSet("extras", v.map { it.name }.toSet()).apply()
 
