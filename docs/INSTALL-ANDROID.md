@@ -48,17 +48,20 @@ Pick a **controller layout** on the setup screen. Pedals are always **BRAKE** bo
 
 | Layout | Top left | Top right | Use with |
 |---|---|---|---|
-| **Auto gears** (default) | **DRS** | **CLUTCH** | Automatic gearbox in the game |
+| **Auto gears** (default) | **DRS** + **ERS** | **CLUTCH** + **PAUSE** | Automatic gearbox in the game |
 | **Paddle shift** | **DOWN** (gear −) | **UP** (gear +) | Manual gearbox in the game |
+| **Truck (ETS2 / ATS)** | **◀** indicator | **▶** indicator | Euro Truck Simulator 2 / American Truck Simulator, see [ETS2-SETUP.md](ETS2-SETUP.md) |
 
 Also on the driving screen:
 
-* Top centre: connection status, then the small buttons you enabled (ERS, PAUSE…). In
-  Auto gears, DRS and Clutch aren't repeated there.
-* Middle: the steering arc. It fills left or right from 12 o'clock and shows the percentage
-  and the physical wheel angle; it turns red at full lock.
-* Bottom centre: **HOLD TO CENTRE** (hold 0.6 s to re-centre) and **PAD**.
-* **PAD mode** (tap PAD, or tap PAUSE): the screen becomes a plain gamepad for the game's
+* **Four-finger layout** (all layouts): index fingers on the two top corners, thumbs on the
+  pedals in the bottom corners. Next to each pedal is a strip of small buttons. The thumb
+  reaches them by sliding inwards, and the first ones sit at the bottom, closest to the
+  thumb. F1 layouts: the small buttons you enabled (e.g. PIT) and **PAD**. Truck: lights,
+  horn, cruise, parking brake and the rest. Buttons go close to the screen edges.
+* Middle: connection status and the steering arc, nothing to press while driving. Bottom
+  centre: **HOLD TO CENTRE** (hold 0.6 s to re-centre).
+* **PAD mode** (tap PAD in the right strip, or tap PAUSE): the screen becomes a plain gamepad for the game's
   menus: a D-pad on the left, **A / B / X / Y** on the right (Xbox colours: A = select,
   B = back), **START** and **BACK** in the middle. Steering and pedals are switched off while
   the pad is up, so turning the wheel can't move the menu cursor. Tap **BACK TO DRIVING** to

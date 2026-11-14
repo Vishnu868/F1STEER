@@ -48,6 +48,15 @@ class ProtocolTest {
         assertEquals("LAPTOP", beacon.name)
     }
 
+    /** Same order as protocol.BUTTONS in Python: bit n is entry n, 32 buttons in all. */
+    @Test fun buttonBitsMatchPython() {
+        Protocol.Button.entries.forEachIndexed { i, b -> assertEquals(1 shl i, b.bit) }
+        assertEquals(32, Protocol.Button.entries.size)
+        assertEquals(Protocol.Button.IND_LEFT, Protocol.Button.entries[18])
+        assertEquals(Protocol.Button.MENU, Protocol.Button.entries[31])
+        assertEquals(8, Protocol.Button.RACING.size)
+    }
+
     @Test fun sizes() {
         assertEquals(Protocol.STATE_SIZE, Protocol.packState(Protocol.State(0, 0f, 0f, 0f, 0, 0, 0, 0f, 0, null, 0)).size)
     }

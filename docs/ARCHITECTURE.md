@@ -80,7 +80,12 @@ Tag 8 B     : HMAC-SHA256(SHA-256("F1WHEEL-PAIR-v1:" + PIN), header+payload)[0:8
 re-mappable in the receiver), then the phone's **PAD mode** buttons PAD_A, PAD_B, PAD_X, PAD_Y,
 DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT, START, BACK (bits 8-17, always the Xbox button of the
 same name). While the phone is in PAD mode it sends steering 0 and no pedals, so the gyro can't
-move the menu cursor.
+move the menu cursor. Bits 18-31 are the **Truck layout** (ETS2 / ATS): IND_LEFT, IND_RIGHT,
+HAZARD, LIGHTS, HIGH_BEAM, HORN, PARK_BRAKE, ENGINE, CRUISE, WIPERS, TRAILER, ACTIVATE, MAP, MENU.
+The receiver does not send these to the Xbox pad. It holds a keyboard key for each one instead
+(`keys.py`, Windows `SendInput` with scan codes, keys set in the receiver's Settings). By default
+it only does this while `eurotrucks2.exe` / `amtrucks.exe` is the window in front, and it
+releases every key on timeout, BYE, server stop and focus loss.
 
 ### Safety rules
 

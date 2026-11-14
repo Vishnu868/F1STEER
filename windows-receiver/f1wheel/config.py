@@ -7,6 +7,7 @@ import secrets
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from .keys import KEY_NAMES
 from .protocol import DEFAULT_PORT
 
 # Xbox 360 button names understood by the backends.
@@ -29,6 +30,26 @@ DEFAULT_MAPPING = {
     "flashback": "BACK",
     "pit_limiter": "B",
     "mfd": "DPAD_UP",
+}
+
+# Truck layout (ETS2 / ATS): phone function -> keyboard key. These are the keys
+# the games use out of the box as far as we know; check them in the game under
+# Options > Controls and change them here if your game uses different ones.
+DEFAULT_TRUCK_KEYS = {
+    "ind_left": "[",
+    "ind_right": "]",
+    "hazard": "F",
+    "lights": "L",
+    "high_beam": "K",
+    "horn": "H",
+    "park_brake": "SPACE",
+    "engine": "E",
+    "cruise": "C",
+    "wipers": "P",
+    "trailer": "T",
+    "activate": "ENTER",
+    "map": "M",
+    "menu": "ESC",
 }
 
 
@@ -56,6 +77,8 @@ class Config:
     invert_steering: bool = False     # extra inversion on the PC side
     beacon: bool = True               # broadcast so the phone can find the laptop
     mapping: dict = field(default_factory=lambda: dict(DEFAULT_MAPPING))
+    truck_keys: dict = field(default_factory=lambda: dict(DEFAULT_TRUCK_KEYS))
+    truck_keys_only_in_game: bool = True   # send truck keys only while ETS2 / ATS is in front
 
     @classmethod
     def load(cls) -> "Config":
@@ -69,6 +92,10 @@ class Config:
                         m = dict(DEFAULT_MAPPING)
                         m.update({a: b for a, b in v.items() if a in DEFAULT_MAPPING and b in XBOX_BUTTONS})
                         cfg.mapping = m
+                    elif k == "truck_keys" and isinstance(v, dict):
+                        t = dict(DEFAULT_TRUCK_KEYS)
+                        t.update({a: b for a, b in v.items() if a in DEFAULT_TRUCK_KEYS and b in KEY_NAMES})
+                        cfg.truck_keys = t
                     elif hasattr(cfg, k):
                         cur = getattr(cfg, k)
                         # Only accept a value of the same type (bool is also an int in Python).

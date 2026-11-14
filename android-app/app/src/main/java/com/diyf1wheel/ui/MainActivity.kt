@@ -119,8 +119,16 @@ class MainActivity : Activity() {
 
         // ---- controller layout
         val lay = card(root, "Controller layout")
-        val tiles = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        // Two tiles per row (three in a row are too narrow on a portrait phone).
+        var tiles = LinearLayout(this)
         for (l in ControllerLayout.entries) {
+            if (l.ordinal % 2 == 0) {
+                tiles = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    if (l.ordinal > 0) setPadding(0, px(10), 0, 0)
+                }
+                lay.addView(tiles)
+            }
             val tile = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(px(10), px(10), px(10), px(10))
@@ -138,10 +146,9 @@ class MainActivity : Activity() {
             }
             layoutTiles[l] = tile
             tiles.addView(tile, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                if (l.ordinal > 0) marginStart = px(10)
+                if (l.ordinal % 2 > 0) marginStart = px(10)
             })
         }
-        lay.addView(tiles)
         refreshLayoutTiles()
 
         // ---- connection
@@ -318,6 +325,14 @@ class MainActivity : Activity() {
         val grid = extrasGrid
         grid.removeAllViews()
         val auto = engine.settings.layout == ControllerLayout.AUTO_GEARS
+        if (engine.settings.layout == ControllerLayout.TRUCK) {
+            grid.addView(muted("Truck layout has its own fixed buttons: indicators in the top corners; a strip beside the brake " +
+                "(lights, high beam, hazard, wipers, engine, map) and beside the throttle (horn, cruise, parking brake, " +
+                "trailer, Enter, menu, PAD). " +
+                "The laptop receiver turns them into the game's keyboard keys (see the receiver's Settings).")
+                .apply { setPadding(0, px(6), 0, 0) })
+            return
+        }
         val chosen = engine.settings.extraButtons.toMutableSet()
         var row: LinearLayout? = null
         Protocol.Button.RACING.forEachIndexed { i, b ->
@@ -348,8 +363,8 @@ class MainActivity : Activity() {
             }
             row!!.addView(chip, LinearLayout.LayoutParams(0, px(36), 1f).apply { if (i % 4 > 0) marginStart = px(6) })
         }
-        if (auto) grid.addView(muted("In Auto gears, DRS and Clutch are the big top buttons.").apply { setPadding(0, px(6), 0, 0) })
-        grid.addView(muted("Menus: tap PAD (or PAUSE) on the driving screen for a D-pad, A / B / X / Y, START and BACK. " +
+        if (auto) grid.addView(muted("In Auto gears, DRS, ERS, Clutch and Pause are the big top buttons.").apply { setPadding(0, px(6), 0, 0) })
+        grid.addView(muted("Small buttons sit in a strip beside each pedal, for your thumbs. Menus: tap PAD (right strip) or PAUSE on the driving screen for a D-pad, A / B / X / Y, START and BACK. " +
             "Steering is off while the pad is shown.").apply { setPadding(0, px(6), 0, 0) })
     }
 

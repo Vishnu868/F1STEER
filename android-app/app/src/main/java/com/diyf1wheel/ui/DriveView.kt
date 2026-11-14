@@ -31,8 +31,9 @@ import kotlin.math.min
  *  - paddles fire exactly one shift per touch-down (with a short debounce);
  *  - ACTION_CANCEL (e.g. a system gesture) releases everything.
  *
- * Two layouts ([ControllerLayout]): AUTO_GEARS puts DRS / CLUTCH in the top corners,
- * PADDLES puts gear down / gear up there. Pedals are always bottom-left / bottom-right.
+ * Three layouts ([ControllerLayout]): AUTO_GEARS puts DRS / CLUTCH in the top corners,
+ * PADDLES puts gear down / gear up there, TRUCK puts the indicators there and a grid of
+ * truck functions (sent as keyboard keys by the receiver) in the middle. Pedals are always bottom-left / bottom-right.
  */
 class DriveView(context: Context, private val engine: WheelEngine) : View(context) {
 
@@ -54,7 +55,11 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
     private val paddleUp = Control(Kind.PADDLE_UP, "UP", Theme.BLUE, sub = "GEAR +", icon = Theme.Icon.CHEVRON_UP)
     private val paddleDown = Control(Kind.PADDLE_DOWN, "DOWN", Theme.PURPLE, sub = "GEAR −", icon = Theme.Icon.CHEVRON_DOWN)
     private val bigDrs = Control(Kind.BUTTON, "DRS", Theme.GREEN, Protocol.Button.DRS, sub = "TAP")
+    private val bigErs = Control(Kind.BUTTON, "ERS", Theme.YELLOW, Protocol.Button.ERS, sub = "TAP")
     private val bigClutch = Control(Kind.BUTTON, "CLUTCH", Theme.ORANGE, Protocol.Button.CLUTCH, sub = "HOLD")
+    private val bigPause = Control(Kind.BUTTON, "PAUSE", Theme.GREY, Protocol.Button.PAUSE, sub = "MENU")
+    private val bigIndLeft = Control(Kind.BUTTON, "◀", Theme.AMBER, Protocol.Button.IND_LEFT, sub = "INDICATOR", titleScale = 2f)
+    private val bigIndRight = Control(Kind.BUTTON, "▶", Theme.AMBER, Protocol.Button.IND_RIGHT, sub = "INDICATOR", titleScale = 2f)
     private val throttle = Control(Kind.THROTTLE, "THROTTLE", Theme.GREEN, icon = Theme.Icon.ARROW_UP)
     private val brake = Control(Kind.BRAKE, "BRAKE", Theme.RED, icon = Theme.Icon.ARROW_DOWN)
     private val centre = Control(Kind.CENTRE, "HOLD TO CENTRE", Theme.GREY, compact = true)
@@ -75,9 +80,11 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
     private val padControls = listOf(dUp, dDown, dLeft, dRight, padY, padX, padB, padA, padBack, padStart, toDrive)
 
     private var layout = ControllerLayout.AUTO_GEARS
-    private var topLeft = bigDrs
-    private var topRight = bigClutch
-    private var extras: List<Control> = emptyList()
+    // Top corners hold one big button each, or two side by side (Auto gears).
+    private var cornerLeft: List<Control> = listOf(bigDrs)
+    private var cornerRight: List<Control> = listOf(bigClutch)
+    private var leftStrip: List<Control> = emptyList()   // Truck: buttons between brake and the middle
+    private var rightStrip: List<Control> = emptyList()  // Truck: buttons between the middle and throttle
     private var driveControls: List<Control> = emptyList()
     private var controls: List<Control> = emptyList()
     private var padMode = false
@@ -107,6 +114,22 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
         Protocol.Button.PIT_LIMITER to Theme.SALMON, Protocol.Button.MFD to Theme.SKY,
     )
 
+    /**
+     * Truck layout: one strip of buttons beside each pedal. The thumbs rest on the pedals,
+     * so the most used buttons are at the bottom of each strip (shortest thumb move) and
+     * the rare ones at the top, near the index fingers. The middle is display only.
+     */
+    private val truckLeft = listOf(
+        Protocol.Button.MAP to Theme.SALMON, Protocol.Button.ENGINE to Theme.GREEN,
+        Protocol.Button.WIPERS to Theme.BLUE, Protocol.Button.HAZARD to Theme.ORANGE,
+        Protocol.Button.HIGH_BEAM to Theme.SKY, Protocol.Button.LIGHTS to Theme.YELLOW,
+    )
+    private val truckRight = listOf(
+        Protocol.Button.MENU to Theme.GREY, Protocol.Button.ACTIVATE to Theme.GREEN,
+        Protocol.Button.TRAILER to Theme.PURPLE, Protocol.Button.PARK_BRAKE to Theme.RED,
+        Protocol.Button.CRUISE to Theme.CYAN, Protocol.Button.HORN to Theme.PINK,
+    )
+
     init {
         isHapticFeedbackEnabled = true
         reloadSettings()
@@ -116,13 +139,36 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
     fun reloadSettings() {
         releaseAll()
         layout = engine.settings.layout
-        if (layout == ControllerLayout.PADDLES) { topLeft = paddleDown; topRight = paddleUp }
-        else { topLeft = bigDrs; topRight = bigClutch }
-        val hidden = if (layout == ControllerLayout.AUTO_GEARS) Settings.AUTO_LAYOUT_BIG else emptySet()
-        extras = Protocol.Button.RACING
+        fun small(b: Protocol.Button, color: Int) = Control(Kind.BUTTON, b.label, color, b, compact = true)
+        fun chosenExtras(hidden: Set<Protocol.Button>) = Protocol.Button.RACING
             .filter { it in engine.settings.extraButtons && it !in hidden }
-            .map { Control(Kind.BUTTON, it.label, extraColors[it]!!, it, compact = true) }
-        driveControls = listOf(topLeft, topRight, throttle, brake, centre, toPad) + extras
+            .map { small(it, extraColors[it]!!) }
+        /**
+         * F1 strips: the chosen small buttons split between the two thumbs, PAD at the top of
+         * the right strip (rarely used). Within a strip the first button sits at the bottom,
+         * right next to the resting thumb.
+         */
+        fun f1Strips(extras: List<Control>) {
+            val k = (extras.size + 1) / 2
+            leftStrip = extras.take(k).reversed()
+            rightStrip = listOf(toPad) + extras.drop(k).reversed()
+        }
+        when (layout) {
+            ControllerLayout.PADDLES -> {
+                cornerLeft = listOf(paddleDown); cornerRight = listOf(paddleUp)
+                f1Strips(chosenExtras(emptySet()))
+            }
+            ControllerLayout.TRUCK -> {
+                cornerLeft = listOf(bigIndLeft); cornerRight = listOf(bigIndRight)
+                leftStrip = truckLeft.map { (b, c) -> small(b, c) }
+                rightStrip = listOf(toPad) + truckRight.map { (b, c) -> small(b, c) }
+            }
+            ControllerLayout.AUTO_GEARS -> {
+                cornerLeft = listOf(bigDrs, bigErs); cornerRight = listOf(bigClutch, bigPause)
+                f1Strips(chosenExtras(Settings.AUTO_LAYOUT_BIG))
+            }
+        }
+        driveControls = cornerLeft + cornerRight + listOf(throttle, brake, centre) + leftStrip + rightStrip
         setPadMode(false)
     }
 
@@ -148,13 +194,11 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
 
     /** PAD mode: D-pad cross on the left, A/B/X/Y diamond on the right, START / BACK in the middle. */
     private fun layoutPad(w: Int, h: Int) {
-        val cut = rootWindowInsets?.displayCutout
-        val base = 12 * dp
-        val side = max(base, max(cut?.safeInsetLeft ?: 0, cut?.safeInsetRight ?: 0).toFloat())
-        val left = side
-        val right = w - side
-        val top = max(base, (cut?.safeInsetTop ?: 0).toFloat())
-        val bottom = h - max(base, (cut?.safeInsetBottom ?: 0).toFloat())
+        val edge = 8 * dp     // close to the edges, like the driving layout
+        val left = edge
+        val right = w - edge
+        val top = edge
+        val bottom = h - edge
         val gap = 4 * dp
 
         // one cell of the cross / diamond
@@ -183,47 +227,59 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
         gaugeRect.set(cl, top, cr, infoY)
     }
 
+    /**
+     * Four-finger layout: index fingers on the top corners, thumbs on the pedals in the bottom
+     * corners, and a strip of small buttons beside each pedal that the thumb reaches by sliding
+     * inwards. The middle only shows the steering and is never needed while driving.
+     */
     private fun layoutDrive(w: Int, h: Int) {
-        // Keep clear of the camera cut-out and rounded screen corners.
-        val cut = rootWindowInsets?.displayCutout
-        val base = 12 * dp
-        // Same margin on both sides so the layout stays symmetric around the camera hole.
-        val side = max(base, max(cut?.safeInsetLeft ?: 0, cut?.safeInsetRight ?: 0).toFloat())
-        val left = side
-        val right = w - side
-        val top = max(base, (cut?.safeInsetTop ?: 0).toFloat())
-        val bottom = h - max(base, (cut?.safeInsetBottom ?: 0).toFloat())
+        // Close to the edges so thumbs and fingers reach easily. The camera hole on this kind
+        // of phone is a small dot; a few pixels of a button under it don't matter, so the big
+        // cut-out safe inset is not applied here (it used to waste space on both sides).
+        val edge = 8 * dp
+        val left = edge
+        val right = w - edge
+        val top = edge
+        val bottom = h - edge
         val gap = 10 * dp
 
-        val colW = (right - left) * 0.27f
+        val colW = (right - left) * 0.21f
+        val stripW = (right - left) * 0.115f
         val split = top + (bottom - top) * 0.44f      // pedals get the larger, lower part
-        topLeft.rect.set(left, top, left + colW, split - gap / 2)
+        fun corner(cs: List<Control>, l: Float, r: Float) {
+            val cwid = (r - l - gap * 0.8f * (cs.size - 1)) / cs.size
+            cs.forEachIndexed { i, c ->
+                val x = l + i * (cwid + gap * 0.8f)
+                c.rect.set(x, top, x + cwid, split - gap / 2)
+            }
+        }
+        corner(cornerLeft, left, left + colW)
+        corner(cornerRight, right - colW, right)
         brake.rect.set(left, split + gap / 2, left + colW, bottom)
-        topRight.rect.set(right - colW, top, right, split - gap / 2)
         throttle.rect.set(right - colW, split + gap / 2, right, bottom)
 
-        val cl = left + colW + gap * 1.6f
-        val cr = right - colW - gap * 1.6f
+        // Strips beside the pedals, filled from the bottom (nearest the resting thumb).
+        // Few buttons stay button-sized instead of stretching over the whole height.
+        fun strip(cs: List<Control>, l: Float) {
+            if (cs.isEmpty()) return
+            val g = gap * 0.7f
+            val bh = min((bottom - top - g * (cs.size - 1)) / cs.size, (bottom - top) * 0.22f)
+            cs.forEachIndexed { i, c ->
+                val y = bottom - (cs.size - i) * bh - (cs.size - 1 - i) * g
+                c.rect.set(l, y, l + stripW, y + bh)
+            }
+        }
+        strip(leftStrip, left + colW + gap)
+        strip(rightStrip, right - colW - gap - stripW)
+        val cl = left + colW + stripW + gap * 2.6f
+        val cr = right - colW - stripW - gap * 2.6f
         val cw = cr - cl
         chipTop = top
-        var y = top + 30 * dp
-        if (extras.isNotEmpty()) {
-            val perRow = if (extras.size > 4) (extras.size + 1) / 2 else extras.size
-            val rows = (extras.size + perRow - 1) / perRow
-            val bh = min((bottom - top) * 0.12f, 46 * dp)
-            val bw = (cw - (perRow - 1) * gap * 0.8f) / perRow
-            extras.forEachIndexed { i, c ->
-                val x = cl + (i % perRow) * (bw + gap * 0.8f)
-                val yy = y + (i / perRow) * (bh + gap * 0.8f)
-                c.rect.set(x, yy, x + bw, yy + bh)
-            }
-            y += rows * (bh + gap * 0.8f)
-        }
+
         val ch = min(40 * dp, (bottom - top) * 0.1f)
-        centre.rect.set(cl + cw * 0.08f, bottom - ch, cl + cw * 0.64f, bottom)
-        toPad.rect.set(cl + cw * 0.68f, bottom - ch, cr - cw * 0.08f, bottom)
+        centre.rect.set(cl + cw * 0.1f, bottom - ch, cr - cw * 0.1f, bottom)
         infoY = centre.rect.top - gap
-        gaugeRect.set(cl, y + gap * 0.5f, cr, infoY - 16 * dp)
+        gaugeRect.set(cl, top + 34 * dp, cr, infoY - 16 * dp)
     }
 
     // ------------------------------------------------------------------ touch
@@ -378,8 +434,11 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
             val hz = "${engine.sensor.rate.hz.toInt()} Hz"
             info.color = Theme.MUTED
             canvas.drawText(
-                if (layout == ControllerLayout.PADDLES) "GEARS  ▲ ${engine.gearUp.get()}  ▼ ${engine.gearDown.get()}   ·   $hz"
-                else "AUTO GEARS   ·   $hz",
+                when (layout) {
+                    ControllerLayout.PADDLES -> "GEARS  ▲ ${engine.gearUp.get()}  ▼ ${engine.gearDown.get()}   ·   $hz"
+                    ControllerLayout.TRUCK -> "TRUCK   ·   $hz"
+                    ControllerLayout.AUTO_GEARS -> "AUTO GEARS   ·   $hz"
+                },
                 gaugeRect.centerX(), infoY, info)
         }
         postInvalidateOnAnimation()
