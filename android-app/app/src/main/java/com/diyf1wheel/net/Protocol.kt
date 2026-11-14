@@ -30,8 +30,13 @@ object Protocol {
 
     const val RTT_UNKNOWN = 0xFFFF
 
-    /** Held-button bits; order matches protocol.BUTTONS in Python. */
-    enum class Button(val bit: Int, val label: String) {
+    /**
+     * Held-button bits; order matches protocol.BUTTONS in Python.
+     * Bits 0-7 are racing functions (re-mappable in the receiver). Bits 8-17 are the
+     * fixed gamepad buttons of PAD mode (menus): they always map to the Xbox button of
+     * the same name, so the game's own menu prompts (A = select, B = back) stay true.
+     */
+    enum class Button(val bit: Int, val label: String, val pad: Boolean = false) {
         DRS(1 shl 0, "DRS"),
         ERS(1 shl 1, "ERS"),
         CLUTCH(1 shl 2, "CLUTCH"),
@@ -40,6 +45,21 @@ object Protocol {
         FLASHBACK(1 shl 5, "FLASHBACK"),
         PIT_LIMITER(1 shl 6, "PIT"),
         MFD(1 shl 7, "MFD"),
+        PAD_A(1 shl 8, "A", true),
+        PAD_B(1 shl 9, "B", true),
+        PAD_X(1 shl 10, "X", true),
+        PAD_Y(1 shl 11, "Y", true),
+        DPAD_UP(1 shl 12, "▲", true),
+        DPAD_DOWN(1 shl 13, "▼", true),
+        DPAD_LEFT(1 shl 14, "◀", true),
+        DPAD_RIGHT(1 shl 15, "▶", true),
+        START(1 shl 16, "START", true),
+        BACK(1 shl 17, "BACK", true);
+
+        companion object {
+            /** The racing functions the setup screen lets you put on the driving screen. */
+            val RACING = entries.filter { !it.pad }
+        }
     }
 
     fun deriveKey(pin: String): ByteArray =

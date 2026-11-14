@@ -254,6 +254,18 @@ class ReceiverTests(unittest.TestCase):
         rx.handle_datagram(ph.state(buttons=P.BUTTON_BIT["drs"] | P.BUTTON_BIT["clutch"]), ADDR, 0.0)
         self.assertEqual(rx.compute_output(0.01)[3], frozenset({"Y", "LB"}))
 
+    def test_pad_buttons_are_fixed(self):
+        """PAD mode buttons ignore the user mapping and always hit the same-named Xbox button."""
+        rx, _ = make()
+        rx.cfg.mapping["gear_up"] = "B"       # must not steal B from the pad
+        ph = Phone()
+        rx.handle_datagram(ph.hello(), ADDR, 0.0)
+        bits = P.BUTTON_BIT["pad_a"] | P.BUTTON_BIT["dpad_left"] | P.BUTTON_BIT["start"]
+        rx.handle_datagram(ph.state(buttons=bits), ADDR, 0.0)
+        self.assertEqual(rx.compute_output(0.01)[3], frozenset({"A", "DPAD_LEFT", "START"}))
+        self.assertEqual(len(P.BUTTONS), 18)
+        self.assertEqual(set(P.PAD_XBOX), set(P.PAD_BUTTONS))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -30,6 +30,17 @@ FUNCTION_LABELS = {
     "flashback": "Flashback",
     "pit_limiter": "Pit limiter",
     "mfd": "MFD / Radio",
+    # PAD mode (menus) - fixed to the Xbox button of the same name
+    "pad_a": "A",
+    "pad_b": "B",
+    "pad_x": "X",
+    "pad_y": "Y",
+    "dpad_up": "D-pad up",
+    "dpad_down": "D-pad down",
+    "dpad_left": "D-pad left",
+    "dpad_right": "D-pad right",
+    "start": "Start",
+    "back": "Back",
 }
 
 
@@ -171,8 +182,15 @@ class Dashboard:
         lamps = ttk.Frame(li, style="Panel.TFrame")
         lamps.pack(anchor="w")
         self.lamps = {}
-        for i, name in enumerate(["gear_up", "gear_down"] + P.BUTTONS):
+        for i, name in enumerate(["gear_up", "gear_down"] + P.RACING_BUTTONS):
             lamp = Lamp(lamps, FUNCTION_LABELS[name].split(" (")[0])
+            lamp.grid(row=i // 5, column=i % 5, padx=2, pady=2, sticky="ew")
+            self.lamps[name] = lamp
+        ttk.Label(li, text="Pad mode (menus)", style="Muted.TLabel").pack(anchor="w", pady=(8, 0))
+        pad = ttk.Frame(li, style="Panel.TFrame")
+        pad.pack(anchor="w")
+        for i, name in enumerate(P.PAD_BUTTONS):
+            lamp = Lamp(pad, FUNCTION_LABELS[name].replace("D-pad ", "D-"))
             lamp.grid(row=i // 5, column=i % 5, padx=2, pady=2, sticky="ew")
             self.lamps[name] = lamp
 
@@ -233,8 +251,13 @@ class Dashboard:
         self.lbl_gears.configure(text=f"Gear-up presses: {s['gear_up_total']}     "
                                       f"Gear-down presses: {s['gear_down_total']}")
         m = self.rx.cfg.mapping
+        held = s["buttons"]
         for name, lamp in self.lamps.items():
-            lamp.set(m.get(name) in btns, AMBER if name.startswith("gear") else GREEN)
+            if name in P.PAD_XBOX:
+                on = bool(held & P.BUTTON_BIT[name])
+                lamp.set(on, BLUE)
+            else:
+                lamp.set(m.get(name) in btns, AMBER if name.startswith("gear") else GREEN)
 
         rtt = s["rtt"]
         self.perf["rx_hz"].configure(text=f"{s['rx_hz']:.0f} /s")
@@ -282,8 +305,10 @@ class Dashboard:
             v = math.sin(i / 40 * 2 * math.pi)
             steps.append((v, 0, 0, ()))
         steps += [(0, i / 10, 0, ()) for i in range(11)] + [(0, 0, i / 10, ()) for i in range(11)]
-        for name in ["gear_up", "gear_down"] + P.BUTTONS:
+        for name in ["gear_up", "gear_down"] + P.RACING_BUTTONS:
             steps += [(0, 0, 0, (m[name],))] * 4 + [(0, 0, 0, ())] * 2
+        for name in P.PAD_BUTTONS:
+            steps += [(0, 0, 0, (P.PAD_XBOX[name],))] * 4 + [(0, 0, 0, ())] * 2
 
         def run(i=0):
             if i >= len(steps):
@@ -311,7 +336,7 @@ class Dashboard:
             elif what == "brake":
                 self.rx.run_test(brake=1, seconds=1.0)
             else:
-                self.rx.run_test(buttons=(m[what],), seconds=0.4)
+                self.rx.run_test(buttons=(P.PAD_XBOX.get(what) or m[what],), seconds=0.4)
             self.lbl_bind.configure(text=f"Sent {what}.")
         fire()
 

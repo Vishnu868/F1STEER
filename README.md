@@ -9,6 +9,7 @@ EA SPORTS F1 25 (and other PC racing games that accept an Xbox controller).
 * **Two layouts:** *Auto gears* (big DRS and Clutch buttons) or *Paddle shift* (right = gear up,
   left = gear down, exactly one shift per tap).
 * **Extra buttons:** DRS, ERS, clutch, pause, look back, flashback, pit limiter, MFD (pick what you want on screen).
+* **PAD mode** for menus: tap PAD (or PAUSE) and the screen becomes a gamepad: D-pad, A / B / X / Y, START, BACK. Steering is off while the pad is up, so the wheel can't move the cursor.
 * The Windows receiver presents a **virtual Xbox 360 controller** (ViGEmBus) that games recognise natively.
 * Local network only: UDP, PIN pairing with signed packets, no accounts, no cloud, no telemetry.
 * Safety: any disconnect, timeout or leaving the driving screen sets the controls to **neutral** within 150 ms.

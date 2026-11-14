@@ -66,6 +66,7 @@ The receiver's defaults (change them in *Receiver → Settings*):
 | Flashback | BACK | Flashback / rewind |
 | Pit limiter | B | Pit limiter |
 | MFD | D-pad up | MFD / radio menu |
+| **PAD mode** (phone: PAD or PAUSE) | A, B, X, Y, D-pad, START, BACK | Menus: these are fixed, not re-mappable, so the game's own prompts (A = select, B = back) are right |
 
 **The easiest way to bind** is in-game: *Controls → Edit mappings*. Select an action
 (e.g. *Gear Up*); when the game asks for an input, **press that control on the phone**

@@ -76,7 +76,11 @@ Tag 8 B     : HMAC-SHA256(SHA-256("F1WHEEL-PAIR-v1:" + PIN), header+payload)[0:8
 | Beacon | PC→broadcast :47801 | "F1WB", ver u8, port u16, nameLen u8, name (unauthenticated, only used to fill in the IP address) |
 
 `flags`: bit0 ACTIVE (driving screen in front, sensor healthy, calibrated), bit1 SENSOR_OK, bit2 CALIBRATED.
-`buttons` bit order: DRS, ERS, CLUTCH, PAUSE, LOOK_BACK, FLASHBACK, PIT_LIMITER, MFD.
+`buttons` bit order: DRS, ERS, CLUTCH, PAUSE, LOOK_BACK, FLASHBACK, PIT_LIMITER, MFD (bits 0-7,
+re-mappable in the receiver), then the phone's **PAD mode** buttons PAD_A, PAD_B, PAD_X, PAD_Y,
+DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT, START, BACK (bits 8-17, always the Xbox button of the
+same name). While the phone is in PAD mode it sends steering 0 and no pedals, so the gyro can't
+move the menu cursor.
 
 ### Safety rules
 

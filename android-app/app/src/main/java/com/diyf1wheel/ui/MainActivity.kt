@@ -320,7 +320,7 @@ class MainActivity : Activity() {
         val auto = engine.settings.layout == ControllerLayout.AUTO_GEARS
         val chosen = engine.settings.extraButtons.toMutableSet()
         var row: LinearLayout? = null
-        Protocol.Button.entries.forEachIndexed { i, b ->
+        Protocol.Button.RACING.forEachIndexed { i, b ->
             if (i % 4 == 0) {
                 row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, px(6), 0, 0) }
                 grid.addView(row)
@@ -349,6 +349,8 @@ class MainActivity : Activity() {
             row!!.addView(chip, LinearLayout.LayoutParams(0, px(36), 1f).apply { if (i % 4 > 0) marginStart = px(6) })
         }
         if (auto) grid.addView(muted("In Auto gears, DRS and Clutch are the big top buttons.").apply { setPadding(0, px(6), 0, 0) })
+        grid.addView(muted("Menus: tap PAD (or PAUSE) on the driving screen for a D-pad, A / B / X / Y, START and BACK. " +
+            "Steering is off while the pad is shown.").apply { setPadding(0, px(6), 0, 0) })
     }
 
     /** A row of mutually exclusive buttons. */
