@@ -132,7 +132,7 @@ object Protocol {
         buf.putInt(s.buttons)
         buf.putShort((s.gearUp and 0xFFFF).toShort())
         buf.putShort((s.gearDown and 0xFFFF).toShort())
-        buf.putShort(clamp(s.rawAngleDeg * 100f, -32767f, 32767f).toInt().toShort())
+        buf.putShort(clamp(s.rawAngleDeg * 10f, -32767f, 32767f).toInt().toShort())   // 0.1°, up to ±3276°
         buf.putShort(s.sensorHz.coerceIn(0, 65535).toShort())
         val rtt = s.rttMs?.let { clamp(it * 10f, 0f, (RTT_UNKNOWN - 1).toFloat()).toInt() } ?: RTT_UNKNOWN
         buf.putShort(rtt.toShort())

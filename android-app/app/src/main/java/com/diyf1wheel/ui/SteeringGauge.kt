@@ -83,7 +83,9 @@ class SteeringGauge(private val dp: Float) {
         c.drawText(when { pct == 0 -> "CENTRE"; pct < 0 -> "LEFT %"; else -> "RIGHT %" },
             cx, cy + big.textSize * 0.2f + small.textSize * 1.6f, small)
         small.color = Theme.withAlpha(Theme.TEXT, 0xB0)
-        c.drawText(String.format(Locale.US, "%+.0f°", angleDeg), cx, cy - big.textSize * 0.95f, small)
+        // past half a turn the degrees alone are hard to read: add the turn count
+        val turns = if (abs(angleDeg) >= 180) String.format(Locale.US, "  ·  %.1f TURNS", abs(angleDeg) / 360) else ""
+        c.drawText(String.format(Locale.US, "%+.0f°", angleDeg) + turns, cx, cy - big.textSize * 0.95f, small)
     }
 }
 

@@ -17,9 +17,15 @@ from __future__ import annotations
 import ctypes
 import os
 import sys
+import time
 
 # Process names of the games the keys may be sent to.
 TRUCK_GAMES = ("eurotrucks2.exe", "amtrucks.exe")
+
+# Every key stays down at least this long. Games read the keyboard once per frame, so a
+# phone tap shorter than a frame (or a tap that falls between two packets) could otherwise
+# press and release the key before the game ever looks.
+MIN_HOLD_S = 0.08
 
 # Key name -> (scan code, extended flag). US keyboard positions; the game reads
 # scan codes, so this is the physical key whatever the Windows layout is.
@@ -49,8 +55,10 @@ KEY_NAMES = list(_SCAN) + ["NONE"]
 class KeySender:
     """Keeps the set of pressed keys equal to what the phone holds."""
 
-    def __init__(self):
+    def __init__(self, clock=time.monotonic):
         self.held: set[str] = set()
+        self._clock = clock
+        self._pressed_at: dict[str, float] = {}
         self.available = sys.platform == "win32"
         self.blocked_reason = ""          # shown on the dashboard
         self._fg_cache: tuple[int, str] = (0, "")
@@ -125,26 +133,34 @@ class KeySender:
         if only_in_game:
             exe = self.foreground_exe()
             if exe not in TRUCK_GAMES:
-                self.blocked_reason = "game window not in front"
+                self.blocked_reason = f"game window not in front (in front: {exe or 'unknown'})"
                 return False
         self.blocked_reason = ""
         return True
 
-    def apply(self, wanted: set[str], only_in_game: bool = True) -> None:
+    def apply(self, wanted: set[str], only_in_game: bool = True, now: float | None = None) -> None:
         """Press keys that are newly wanted, release keys that are no longer wanted."""
         wanted = {k for k in wanted if k in _SCAN}
         if wanted and not self.allowed(only_in_game):
-            wanted = set()
+            self.release_all()          # never leave a key down outside the game
+            return
+        if now is None:
+            now = self._clock()
+        # keep a just-pressed key down until it has been held MIN_HOLD_S
+        wanted |= {k for k in self.held if now - self._pressed_at.get(k, -1e9) < MIN_HOLD_S}
         if wanted == self.held:
             return
         for k in self.held - wanted:
             self._release(k)
+            self._pressed_at.pop(k, None)
         for k in wanted - self.held:
             self._press(k)
+            self._pressed_at[k] = now
 
     def release_all(self) -> None:
         for k in list(self.held):
             self._release(k)
+        self._pressed_at.clear()
 
     def _press(self, key: str) -> None:
         if self.available:

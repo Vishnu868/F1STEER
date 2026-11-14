@@ -39,7 +39,7 @@ T_ACK = 16
 
 HEADER = struct.Struct("<2sBBII")
 # phone_ms, steer, throttle, brake, buttons, gear_up, gear_down,
-# raw_angle_cdeg, sensor_hz, rtt_tenth_ms, flags
+# raw_angle_tenth_deg, sensor_hz, rtt_tenth_ms, flags
 STATE = struct.Struct("<IhHHIHHhHHB")
 # echo_phone_ms, controller_ok, rx_hz, dropped
 ACK = struct.Struct("<IBHI")
@@ -171,7 +171,7 @@ def pack_state(m: StateMsg) -> bytes:
         m.buttons & 0xFFFFFFFF,
         m.gear_up & 0xFFFF,
         m.gear_down & 0xFFFF,
-        int(_clamp(m.raw_angle_deg * 100, -32767, 32767)),
+        int(_clamp(m.raw_angle_deg * 10, -32767, 32767)),   # 0.1 deg, up to +-3276 (multi-turn wheels)
         int(_clamp(m.sensor_hz, 0, 65535)),
         rtt,
         m.flags & 0xFF,
@@ -190,7 +190,7 @@ def unpack_state(payload: bytes) -> StateMsg | None:
         buttons=buttons,
         gear_up=gu,
         gear_down=gd,
-        raw_angle_deg=raw / 100.0,
+        raw_angle_deg=raw / 10.0,
         sensor_hz=hz,
         rtt_ms=None if rtt == RTT_UNKNOWN else rtt / 10.0,
         flags=flags,

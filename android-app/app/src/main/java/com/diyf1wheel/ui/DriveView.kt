@@ -19,6 +19,7 @@ import com.diyf1wheel.settings.ControllerLayout
 import com.diyf1wheel.settings.PedalMode
 import com.diyf1wheel.settings.Settings
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -91,6 +92,19 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
     private val dead = Control(Kind.BUTTON, "", 0)        // pointer that left its control
 
     private val pointers = SparseArray<Control>()
+
+    /**
+     * Throttle lock (Truck layout, [Settings.throttleLock]): lifting the thumb off THROTTLE
+     * keeps the last value; a plain tap on a locked throttle, or any touch on BRAKE, releases
+     * it. A truck wheel turns three times lock to lock, which takes the thumbs off the pedals.
+     */
+    private var throttleLocked = false
+    private var throttleDownAt = 0L
+    private var throttleDownY = 0f
+    private var throttleMoved = false
+    private var throttleWasLocked = false
+    private val lockEnabled get() = layout == ControllerLayout.TRUCK && engine.settings.throttleLock
+
     private var lastUp = 0L
     private var lastDown = 0L
     private var centreDownAt = 0L
@@ -307,6 +321,7 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
                         release(c)
                         pointers.put(id, dead)
                     } else if (c.kind == Kind.THROTTLE || c.kind == Kind.BRAKE) {
+                        if (c.kind == Kind.THROTTLE && abs(y - throttleDownY) > 14 * dp) throttleMoved = true
                         setPedal(c, y)
                     }
                 }
@@ -338,7 +353,15 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
         when (c.kind) {
             Kind.PADDLE_UP -> if (now - lastUp > 70) { lastUp = now; engine.shiftUp(); haptic() }
             Kind.PADDLE_DOWN -> if (now - lastDown > 70) { lastDown = now; engine.shiftDown(); haptic() }
-            Kind.THROTTLE, Kind.BRAKE -> setPedal(c, y)
+            Kind.THROTTLE -> {
+                throttleDownAt = now; throttleDownY = y; throttleMoved = false
+                throttleWasLocked = throttleLocked
+                setPedal(c, y)
+            }
+            Kind.BRAKE -> {
+                if (throttleLocked) unlockThrottle()     // braking always cancels a locked throttle
+                setPedal(c, y)
+            }
             Kind.BUTTON -> { engine.setButton(c.button!!, true); haptic() }
             Kind.CENTRE -> centreDownAt = now
             Kind.TO_PAD, Kind.TO_DRIVE -> haptic()
@@ -357,12 +380,28 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
 
     private var switchTo: Boolean? = null   // mode change requested by a touch, applied after the event
 
+    private fun unlockThrottle() {
+        throttleLocked = false
+        if (!throttle.pressed) { throttle.value = 0f; engine.throttle = 0f }
+        haptic()
+    }
+
     private fun release(c: Control) {
         c.pressed = false
-        c.value = 0f
         when (c.kind) {
-            Kind.THROTTLE -> engine.throttle = 0f
-            Kind.BRAKE -> engine.brake = 0f
+            Kind.THROTTLE -> {
+                val tap = SystemClock.uptimeMillis() - throttleDownAt < 350 && !throttleMoved
+                if (lockEnabled && !(tap && throttleWasLocked) && !brake.pressed) {
+                    // lift = keep this value; a tap on a locked throttle falls through and releases it
+                    if (!throttleLocked) haptic()
+                    throttleLocked = true
+                    return
+                }
+                throttleLocked = false
+                c.value = 0f
+                engine.throttle = 0f
+            }
+            Kind.BRAKE -> { c.value = 0f; engine.brake = 0f }
             Kind.BUTTON -> {
                 engine.setButton(c.button!!, false)
                 // PAUSE opens the game's menu, so the gamepad is what you need next.
@@ -373,10 +412,13 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
             Kind.TO_DRIVE -> switchTo = false
             else -> {}
         }
+        c.value = 0f
     }
 
     fun releaseAll() {
         controls.forEach { if (it.pressed) release(it) }
+        throttleLocked = false
+        throttle.value = 0f
         pointers.clear()
         switchTo = null
         engine.clearInputs()
@@ -397,13 +439,19 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
         val upFlash = now - lastUp < 150
         val downFlash = now - lastDown < 150
         for (c in controls) {
-            val pressed = c.pressed || (c === paddleUp && upFlash) || (c === paddleDown && downFlash)
+            val locked = c === throttle && throttleLocked
+            val pressed = c.pressed || locked || (c === paddleUp && upFlash) || (c === paddleDown && downFlash)
             val pedal = c.kind == Kind.THROTTLE || c.kind == Kind.BRAKE
             val progress = if (c.kind == Kind.CENTRE && centreDownAt != 0L)
                 ((now - centreDownAt) / 600f).coerceIn(0f, 1f) else 0f
+            val sub = when {
+                locked -> "LOCKED ${(c.value * 100).toInt()}%"
+                pedal && !c.pressed && c === throttle && lockEnabled -> "TAP = LOCK"
+                pedal -> "${(c.value * 100).toInt()}%"
+                else -> c.sub
+            }
             painter.draw(canvas, c.rect, c.color, pressed && c.kind != Kind.CENTRE, c.label,
-                subLabel = if (pedal) "${(c.value * 100).toInt()}%" else c.sub,
-                icon = c.icon, level = if (pedal && c.pressed) c.value else -1f,
+                subLabel = sub, icon = c.icon, level = if (pedal && (c.pressed || locked)) c.value else -1f,
                 progress = progress, compact = c.compact, titleScale = c.titleScale)
         }
 

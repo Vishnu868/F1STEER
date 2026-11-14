@@ -15,7 +15,7 @@ class ProtocolTest {
     @Test fun stateMatchesPython() {
         val st = Protocol.State(123456789, -0.5f, 1f, 0.25f, 0b101, 7, 3, -45.5f, 400, 8.5f, 7)
         val bytes = Protocol.encode(signer, Protocol.T_STATE, 0x01020304, 5, Protocol.packState(st))
-        assertArrayEquals(hex("46310102040302010500000015cd5b0701c0ffff004005000000070003003aee90015500071c26547622ba04e3"), bytes)
+        assertArrayEquals(hex("46310102040302010500000015cd5b0701c0ffff0040050000000700030039fe900155000756316c34a86ac9dc"), bytes)
     }
 
     @Test fun decodesPythonAck() {

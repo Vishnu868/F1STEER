@@ -150,6 +150,8 @@ data class SteeringTuning(
         val SENSITIVE = SteeringTuning(60.0, 60.0, 1.0, 0.01, 1.0, 0.15)
         val BALANCED = SteeringTuning(90.0, 90.0, 1.0, 0.02, 1.3, 0.3)
         val SMOOTH = SteeringTuning(120.0, 120.0, 1.0, 0.03, 1.6, 0.6)
+        /** A truck wheel: 1.5 turns each way (3 turns lock to lock), linear like the real thing. */
+        val TRUCK = SteeringTuning(540.0, 540.0, 1.0, 0.01, 1.0, 0.2)
     }
 }
 

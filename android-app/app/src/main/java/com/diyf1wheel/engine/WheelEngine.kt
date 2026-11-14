@@ -136,6 +136,7 @@ class WheelEngine(private val context: Context) {
         neutral = sensor.quat
         neutralGravity = sensor.gravity
         filter.reset()
+        resetUnwrap()
         if (save) {
             settings.neutral = neutral
             settings.neutralGravity = neutralGravity
@@ -152,6 +153,7 @@ class WheelEngine(private val context: Context) {
         axis = a
         settings.axis = a
         filter.reset()
+        resetUnwrap()
         return null
     }
 
@@ -159,6 +161,7 @@ class WheelEngine(private val context: Context) {
         settings.resetAxis()
         axis = SteeringMath.DEFAULT_AXIS
         filter.reset()
+        resetUnwrap()
     }
 
     fun updateTuning(t: SteeringTuning) {
@@ -168,12 +171,36 @@ class WheelEngine(private val context: Context) {
     }
 
     // ------------------------------------------------------------ processing
+    // Multi-turn tracking: the sensor gives the angle wrapped to -180..180, so every
+    // sample's step is accumulated instead. 540° right after three half-turns stays 540°
+    // (a truck wheel) rather than flipping to -180°. Steps are small at 200+ Hz, so a wrap
+    // is unmistakable. Reset whenever the centre or the axis changes.
+    private var lastWrappedDeg = 0.0
+    private var unwrappedDeg = 0.0
+    private var haveLastWrapped = false
+
+    private fun unwrap(wrapped: Double): Double {
+        if (!haveLastWrapped) {
+            haveLastWrapped = true
+            lastWrappedDeg = wrapped
+            unwrappedDeg = wrapped
+            return wrapped
+        }
+        var d = wrapped - lastWrappedDeg
+        if (d > 180) d -= 360 else if (d < -180) d += 360
+        lastWrappedDeg = wrapped
+        unwrappedDeg = (unwrappedDeg + d).coerceIn(-MAX_TRACKED_DEG, MAX_TRACKED_DEG)
+        return unwrappedDeg
+    }
+
+    private fun resetUnwrap() { haveLastWrapped = false }
+
     private fun onSample(tNanos: Long) {
         if (pendingAutoCentre) {
             pendingAutoCentre = false
             setCentre(save = false)
         }
-        val angle: Double = when (sensor.mode) {
+        val wrapped: Double = when (sensor.mode) {
             SteeringSensor.Mode.GRAVITY -> {
                 val g0 = neutralGravity ?: return
                 SteeringMath.gravityTwistDeg(g0, sensor.gravity, axis) ?: rawAngleDeg
@@ -185,6 +212,7 @@ class WheelEngine(private val context: Context) {
                 SteeringMath.twistDeg(rel, axis)
             }
         }
+        val angle = unwrap(wrapped)
         rawAngleDeg = angle
         val f = filter.filter(angle, tNanos)
         filteredAngleDeg = f
@@ -192,6 +220,11 @@ class WheelEngine(private val context: Context) {
     }
 
     fun sensorHealthy(): Boolean = sensor.healthy(SystemClock.elapsedRealtimeNanos())
+
+    companion object {
+        /** Furthest the wheel is tracked from centre: 5 turns each way, far past any real wheel. */
+        const val MAX_TRACKED_DEG = 1800.0
+    }
 
     private fun buildState(phoneMs: Long, rtt: Float?): Protocol.State {
         val healthy = sensorHealthy()

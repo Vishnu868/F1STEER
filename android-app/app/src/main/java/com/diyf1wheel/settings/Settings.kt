@@ -11,6 +11,7 @@ enum class Preset(val label: String, val tuning: SteeringTuning?) {
     SENSITIVE("Sensitive", SteeringTuning.SENSITIVE),
     BALANCED("Balanced", SteeringTuning.BALANCED),
     SMOOTH("Smooth", SteeringTuning.SMOOTH),
+    TRUCK("Truck", SteeringTuning.TRUCK),
     CUSTOM("Custom", null),
 }
 
@@ -112,6 +113,14 @@ class Settings(context: Context) {
             return raw.mapNotNull { runCatching { Protocol.Button.valueOf(it) }.getOrNull() }.filter { !it.pad && !it.truck }.toSet()
         }
         set(v) = p.edit().putStringSet("extras", v.map { it.name }.toSet()).apply()
+
+    /**
+     * Truck layout only: a tap on THROTTLE keeps it on until the next tap (or BRAKE).
+     * Needed because turning a truck wheel three times takes both hands off the pedals.
+     */
+    var throttleLock: Boolean
+        get() = p.getBoolean("throttleLock", true)
+        set(v) = p.edit().putBoolean("throttleLock", v).apply()
 
     var haptics: Boolean
         get() = p.getBoolean("haptics", true)

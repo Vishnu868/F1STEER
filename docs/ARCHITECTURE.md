@@ -70,7 +70,7 @@ Tag 8 B     : HMAC-SHA256(SHA-256("F1WHEEL-PAIR-v1:" + PIN), header+payload)[0:8
 | Type | Dir | Payload |
 |---|---|---|
 | 1 HELLO | phone→PC | nameLen u8, name (≤32 B UTF-8) |
-| 2 STATE | phone→PC | phoneMs u32, steer i16 (±32767), throttle u16, brake u16, buttons u32, gearUp u16, gearDown u16, rawAngle i16 (0.01°), sensorHz u16, rtt u16 (0.1 ms, 0xFFFF = unknown), flags u8 — 25 B |
+| 2 STATE | phone→PC | phoneMs u32, steer i16 (±32767), throttle u16, brake u16, buttons u32, gearUp u16, gearDown u16, rawAngle i16 (0.1°, display only), sensorHz u16, rtt u16 (0.1 ms, 0xFFFF = unknown), flags u8 — 25 B |
 | 3 BYE | phone→PC | — (PC neutralises immediately) |
 | 16 ACK | PC→phone | echoPhoneMs u32, controllerOk u8, rxHz u16, dropped u32 |
 | Beacon | PC→broadcast :47801 | "F1WB", ver u8, port u16, nameLen u8, name (unauthenticated, only used to fill in the IP address) |

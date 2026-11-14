@@ -207,8 +207,8 @@ class MainActivity : Activity() {
             presets.addView(b, LinearLayout.LayoutParams(0, px(44), 1f).apply { marginEnd = px(4) })
         }
         tune.addView(presets)
-        slider(tune, "maxLeft", "Full lock LEFT at", 20, 270) { "${it}° of wheel rotation" }
-        slider(tune, "maxRight", "Full lock RIGHT at", 20, 270) { "${it}° of wheel rotation" }
+        slider(tune, "maxLeft", "Full lock LEFT at", 20, 900) { "${it}° of wheel rotation" + turnsText(it) }
+        slider(tune, "maxRight", "Full lock RIGHT at", 20, 900) { "${it}° of wheel rotation" + turnsText(it) }
         slider(tune, "sens", "Sensitivity", 50, 200) { "×${"%.2f".format(Locale.US, it / 100f)}" }
         slider(tune, "dead", "Centre dead zone", 0, 15) { "$it %" }
         slider(tune, "curve", "Response curve", 50, 300) {
@@ -230,6 +230,14 @@ class MainActivity : Activity() {
             engine.settings.pedalMode = PedalMode.entries[i]
         })
         ctl.addView(muted("Digital: touching the pedal = 100 %. Analog: slide your thumb up the pedal for more."))
+        ctl.addView(Switch(this).apply {
+            text = "Throttle lock (Truck layout)"; setTextColor(Color.WHITE)
+            isChecked = engine.settings.throttleLock
+            setPadding(0, px(10), 0, 0)
+            setOnCheckedChangeListener { _, c -> engine.settings.throttleLock = c }
+        })
+        ctl.addView(muted("Tap THROTTLE and it stays on (bright green) while you turn the wheel hand over hand. " +
+                "Tap it again, or touch BRAKE, to release it. Slide up or down before lifting to lock a part-throttle."))
         ctl.addView(label("Small buttons in the middle of the screen"))
         extrasGrid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         ctl.addView(extrasGrid)
@@ -274,6 +282,9 @@ class MainActivity : Activity() {
         loadTuningIntoSliders(engine.tuning)
         highlightPreset(s.preset)
     }
+
+    private fun turnsText(deg: Int): String =
+        if (deg < 180) "" else "  (${"%.2f".format(Locale.US, deg / 360f).trimEnd('0').trimEnd('.')} turns)"
 
     private fun loadTuningIntoSliders(t: SteeringTuning) {
         suppressSliderEvents = true
@@ -329,7 +340,8 @@ class MainActivity : Activity() {
             grid.addView(muted("Truck layout has its own fixed buttons: indicators in the top corners; a strip beside the brake " +
                 "(lights, high beam, hazard, wipers, engine, map) and beside the throttle (horn, cruise, parking brake, " +
                 "trailer, Enter, menu, PAD). " +
-                "The laptop receiver turns them into the game's keyboard keys (see the receiver's Settings).")
+                "The laptop receiver turns them into the game's keyboard keys (see the receiver's Settings). " +
+                "Pick the Truck steering preset above for a 3-turn wheel; THROTTLE then locks on with a tap.")
                 .apply { setPadding(0, px(6), 0, 0) })
             return
         }

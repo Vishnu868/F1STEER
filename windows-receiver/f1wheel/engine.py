@@ -306,7 +306,7 @@ class Receiver:
     def tick(self, now: float) -> None:
         out = self.compute_output(now)
         try:
-            self.keys.apply(set(self.truck_out), self.cfg.truck_keys_only_in_game)
+            self.keys.apply(set(self.truck_out), self.cfg.truck_keys_only_in_game, now)
         except Exception as e:
             with self.lock:
                 self.event(f"Keyboard output failed: {e}")

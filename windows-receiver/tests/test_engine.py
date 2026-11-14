@@ -298,6 +298,9 @@ class ReceiverTests(unittest.TestCase):
         self.assertEqual(rx.keys.held, {"[", "H", "ESC"})
         rx.handle_datagram(ph.state(buttons=P.BUTTON_BIT["horn"]), ADDR, 0.02)
         rx.tick(0.03)
+        self.assertEqual(rx.keys.held, {"[", "H", "ESC"})  # short tap: kept for the minimum hold
+        rx.handle_datagram(ph.state(buttons=P.BUTTON_BIT["horn"]), ADDR, 0.1)
+        rx.tick(0.11)
         self.assertEqual(rx.keys.held, {"H"})
 
     def test_truck_keys_released_on_timeout(self):
@@ -325,8 +328,35 @@ class ReceiverTests(unittest.TestCase):
         ks._send = lambda key, down: self.fail("must not type into other programs")
         ks.apply({"H"}, only_in_game=True)
         self.assertEqual(ks.held, set())
-        self.assertEqual(ks.blocked_reason, "game window not in front")
+        self.assertTrue(ks.blocked_reason.startswith("game window not in front"))
+        self.assertIn("notepad.exe", ks.blocked_reason)
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MinHoldTest(unittest.TestCase):
+    """A phone tap shorter than a game frame must still reach the game."""
+
+    def test_short_tap_is_held_80ms(self):
+        t = [0.0]
+        k = FakeKeys()
+        k._clock = lambda: t[0]
+        k.apply({"["})
+        t[0] = 0.01
+        k.apply(set())                     # phone released after 10 ms
+        self.assertIn("[", k.held)          # still down
+        t[0] = 0.09
+        k.apply(set())
+        self.assertNotIn("[", k.held)       # released after the minimum hold
+        self.assertEqual(k.log, [("down", "["), ("up", "[")])
+
+    def test_long_hold_released_at_once(self):
+        t = [0.0]
+        k = FakeKeys()
+        k._clock = lambda: t[0]
+        k.apply({"H"})
+        t[0] = 1.0
+        k.apply(set())
+        self.assertNotIn("H", k.held)
