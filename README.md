@@ -26,8 +26,7 @@ EA SPORTS F1 25 (and other PC racing games that accept an Xbox controller).
    Allow it on **Private** networks when Windows asks. → [Windows setup](docs/INSTALL-WINDOWS.md)
 2. **Phone:** install `DIYF1Wheel-x.y.z.apk` → *Find laptop* → enter the PIN shown on the
    laptop → *CONNECT*. → [Android setup](docs/INSTALL-ANDROID.md)
-3. **Wheel:** build the cardboard wheel and mount the phone in landscape, facing you. →
-   [Cardboard guide](docs/CARDBOARD-WHEEL.md)
+3. **Wheel:** hold the phone in landscape, facing you, upright like a steering wheel.
 4. Hold the wheel straight → **Set centre** → **START DRIVING**. → [Calibration](docs/CALIBRATION.md)
 5. **F1 25:** set up the controller and bind gear up/down to the paddles. → [F1 25 guide](docs/F1-25-SETUP.md)
 
@@ -40,7 +39,6 @@ No wheel yet? Hold the phone upright like a steering pad and turn it. It works t
 | [Architecture](docs/ARCHITECTURE.md) | Design decisions, protocol, data flow, latency budget |
 | [Windows setup](docs/INSTALL-WINDOWS.md) | Driver, receiver, firewall, dashboard |
 | [Android setup](docs/INSTALL-ANDROID.md) | APK install, connection, USB tethering, building from source |
-| [Cardboard wheel](docs/CARDBOARD-WHEEL.md) | Dimensions, construction, phone mounting, grip |
 | [Calibration](docs/CALIBRATION.md) | Centre, axis, presets, every tuning parameter |
 | [F1 25 configuration](docs/F1-25-SETUP.md) | Controller settings, mapping, gearbox, assists |
 | [ETS2 / ATS configuration](docs/ETS2-SETUP.md) | Truck layout, keyboard keys, game controls |

@@ -28,7 +28,7 @@ the phone's **Sensor debug** switch.
 
 | Symptom | Fix |
 |---|---|
-| Car drifts left/right with the wheel centred | Hold **CENTRE** on the driving screen. If it drifts again within minutes, you're probably holding the wheel too flat: keep it upright (see [CARDBOARD-WHEEL.md](CARDBOARD-WHEEL.md)). |
+| Car drifts left/right with the wheel centred | Hold **CENTRE** on the driving screen. If it drifts again within minutes, you're probably holding the wheel too flat: keep it upright, facing you like a real wheel. |
 | Steering reversed | *Invert steering direction* on the phone. (Running **Calibrate axis** also fixes it, because the axis is defined by your right turn.) |
 | Angle changes when tilting (not turning) the wheel | Run **Calibrate axis** ([CALIBRATION.md](CALIBRATION.md)). |
 | Jittery | Raise *Smoothing* to 40-50 %, add 1-2 % dead zone, make sure the phone is tight in the mount. |

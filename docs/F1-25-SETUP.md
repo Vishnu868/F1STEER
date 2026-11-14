@@ -43,7 +43,7 @@ In the controller's calibration / input-response settings set:
 | Steering saturation | **0** | Full lock already comes from the phone's "full lock" angle |
 | Throttle / brake deadzone | **0** | Touch pedals start from exactly 0 |
 | Throttle / brake saturation | **0** | |
-| Vibration | Off | There's no motor in the cardboard 🙂 |
+| Vibration | Off | The phone wheel has no vibration motor for the game to drive |
 
 Tune steering on the **phone** (presets / sliders), not in the game, so everything stays in one place.
 
@@ -108,7 +108,7 @@ Touch throttle is on/off (or thumb-position analog), so:
 * F1 25 applies its own controller steering assistance and speed-sensitive smoothing to
   gamepads, so steering is a little softer than a real wheel. That's a property of the
   game's controller mode, not of this project.
-* Force feedback isn't possible (the virtual pad has rumble only, and the cardboard has no motor).
+* Force feedback isn't possible (the virtual pad has rumble only, and the phone wheel has no motor).
 * EA's anti-cheat runs on PC. The ViGEmBus driver is a signed system driver used by many
   common controller tools and doesn't touch the game process, but this project can't
   guarantee how a future anti-cheat update will treat it.

@@ -3,7 +3,7 @@
 ## Overview
 
 ```
-┌──────────── Android phone (mounted on the cardboard wheel) ─────────────┐
+┌──────────── Android phone (held upright like a steering wheel) ──────────┐
 │                                                                          │
 │  GAME_ROTATION_VECTOR  ──►  q_rel = q_neutral⁻¹ · q_now                  │
 │  (gyro + accel fusion,      ──► swing-twist about the steering axis      │
