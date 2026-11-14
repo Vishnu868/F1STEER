@@ -35,8 +35,9 @@ object Protocol {
      * Bits 0-7 are racing functions (re-mappable in the receiver). Bits 8-17 are the
      * fixed gamepad buttons of PAD mode (menus): they always map to the Xbox button of
      * the same name, so the game's own menu prompts (A = select, B = back) stay true.
+     * Bits 18-31 are the Truck layout (ETS2 / ATS); the receiver sends them as keyboard keys.
      */
-    enum class Button(val bit: Int, val label: String, val pad: Boolean = false) {
+    enum class Button(val bit: Int, val label: String, val pad: Boolean = false, val truck: Boolean = false) {
         DRS(1 shl 0, "DRS"),
         ERS(1 shl 1, "ERS"),
         CLUTCH(1 shl 2, "CLUTCH"),
@@ -54,11 +55,25 @@ object Protocol {
         DPAD_LEFT(1 shl 14, "◀", true),
         DPAD_RIGHT(1 shl 15, "▶", true),
         START(1 shl 16, "START", true),
-        BACK(1 shl 17, "BACK", true);
+        BACK(1 shl 17, "BACK", true),
+        IND_LEFT(1 shl 18, "◀ IND", truck = true),
+        IND_RIGHT(1 shl 19, "IND ▶", truck = true),
+        HAZARD(1 shl 20, "HAZARD", truck = true),
+        LIGHTS(1 shl 21, "LIGHTS", truck = true),
+        HIGH_BEAM(1 shl 22, "HIGH BEAM", truck = true),
+        HORN(1 shl 23, "HORN", truck = true),
+        PARK_BRAKE(1 shl 24, "P-BRAKE", truck = true),
+        ENGINE(1 shl 25, "ENGINE", truck = true),
+        CRUISE(1 shl 26, "CRUISE", truck = true),
+        WIPERS(1 shl 27, "WIPERS", truck = true),
+        TRAILER(1 shl 28, "TRAILER", truck = true),
+        ACTIVATE(1 shl 29, "ENTER", truck = true),
+        MAP(1 shl 30, "MAP", truck = true),
+        MENU(1 shl 31, "MENU", truck = true);
 
         companion object {
             /** The racing functions the setup screen lets you put on the driving screen. */
-            val RACING = entries.filter { !it.pad }
+            val RACING = entries.filter { !it.pad && !it.truck }
         }
     }
 

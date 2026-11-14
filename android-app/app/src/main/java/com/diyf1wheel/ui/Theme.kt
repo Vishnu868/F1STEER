@@ -101,9 +101,16 @@ object Theme {
 
             val ink = if (pressed) Color.BLACK else TEXT
             val h = r.height()
-            val titleSize = if (compact) minOf(h * 0.36f, r.width() / maxOf(label.length, 3) * 1.3f, 17 * dp)
+            var titleSize = if (compact) minOf(h * 0.36f, r.width() / maxOf(label.length, 3) * 1.3f, 17 * dp)
                             else minOf(h * 0.17f * titleScale, r.width() / maxOf(label.length, 4) * 1.45f * titleScale, 34 * dp * titleScale)
+            // Wide letters (CLUTCH, MENU…) can still overflow: shrink until the label fits inside the border.
             title.textSize = titleSize
+            val room = r.width() - 12 * dp
+            val tw = title.measureText(label)
+            if (tw > room && tw > 0f) {
+                titleSize *= room / tw
+                title.textSize = titleSize
+            }
             title.color = ink
             val hasIcon = icon != Icon.NONE && !compact && h > 90 * dp
             val iconSize = if (hasIcon) minOf(h * 0.18f, r.width() * 0.22f) else 0f

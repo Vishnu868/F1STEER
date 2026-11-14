@@ -26,22 +26,46 @@ class LayoutPreview(context: Context, private val layout: ControllerLayout) : Vi
         c.drawRoundRect(phone, 10 * dp, 10 * dp, frame)
 
         val m = 5 * dp
-        val colW = phone.width() * 0.27f
+        val colW = phone.width() * 0.21f       // same proportions as the driving screen
+        val sw = phone.width() * 0.10f
         val split = phone.top + phone.height() * 0.44f
         fun box(l: Float, t: Float, rr: Float, b: Float, color: Int, label: String) {
             r.set(l, t, rr, b)
             painter.draw(c, r, color, false, label, compact = true)
         }
-        val (tl, tr) = if (layout == ControllerLayout.PADDLES)
-            Pair(Pair(Theme.PURPLE, "−"), Pair(Theme.BLUE, "+")) else Pair(Pair(Theme.GREEN, "DRS"), Pair(Theme.ORANGE, "CLU"))
-        box(phone.left + m, phone.top + m, phone.left + colW, split - m / 2, tl.first, tl.second)
-        box(phone.right - colW, phone.top + m, phone.right - m, split - m / 2, tr.first, tr.second)
+        // top corners: index fingers
+        when (layout) {
+            ControllerLayout.AUTO_GEARS -> {
+                val half = (colW - m * 2) / 2
+                box(phone.left + m, phone.top + m, phone.left + m + half, split - m / 2, Theme.GREEN, "DRS")
+                box(phone.left + m * 2 + half, phone.top + m, phone.left + colW, split - m / 2, Theme.YELLOW, "ERS")
+                box(phone.right - colW, phone.top + m, phone.right - colW + half, split - m / 2, Theme.ORANGE, "CLU")
+                box(phone.right - colW + half + m, phone.top + m, phone.right - m, split - m / 2, Theme.GREY, "II")
+            }
+            ControllerLayout.PADDLES -> {
+                box(phone.left + m, phone.top + m, phone.left + colW, split - m / 2, Theme.PURPLE, "−")
+                box(phone.right - colW, phone.top + m, phone.right - m, split - m / 2, Theme.BLUE, "+")
+            }
+            ControllerLayout.TRUCK -> {
+                box(phone.left + m, phone.top + m, phone.left + colW, split - m / 2, Theme.AMBER, "◀")
+                box(phone.right - colW, phone.top + m, phone.right - m, split - m / 2, Theme.AMBER, "▶")
+            }
+        }
+        // bottom corners: thumbs
         box(phone.left + m, split + m / 2, phone.left + colW, phone.bottom - m, Theme.RED, "BRK")
         box(phone.right - colW, split + m / 2, phone.right - m, phone.bottom - m, Theme.GREEN, "THR")
+        // thumb strips beside the pedals, filled from the bottom
+        val n = if (layout == ControllerLayout.TRUCK) 6 else 2
+        val bh = minOf((phone.height() - m * 7) / 6, phone.height())
+        for (k in 0 until n) {
+            val b = phone.bottom - m - k * (bh + m)
+            box(phone.left + colW + m, b - bh, phone.left + colW + m + sw, b, Theme.GREY, "")
+            box(phone.right - colW - m - sw, b - bh, phone.right - colW - m, b, Theme.GREY, "")
+        }
 
         // steering arc in the middle
         val cx = phone.centerX()
-        val rad = minOf(phone.width() * 0.16f, phone.height() * 0.32f)
+        val rad = minOf(phone.width() * 0.12f, phone.height() * 0.32f)
         val cy = phone.centerY() + rad * 0.25f
         arc.strokeWidth = rad * 0.22f
         arc.color = Theme.TRACK

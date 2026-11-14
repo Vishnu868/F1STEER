@@ -16,8 +16,9 @@ enum class Preset(val label: String, val tuning: SteeringTuning?) {
 
 /** Big buttons in the top corners of the driving screen. */
 enum class ControllerLayout(val label: String, val description: String) {
-    AUTO_GEARS("Auto gears", "DRS and clutch on top, no paddles. Use automatic gears in the game."),
+    AUTO_GEARS("Auto gears", "DRS + ERS and clutch + pause on top, no paddles. Use automatic gears in the game."),
     PADDLES("Paddle shift", "Gear down / gear up paddles on top. Use manual gears in the game."),
+    TRUCK("Truck (ETS2 / ATS)", "Indicators for your index fingers, truck buttons in a strip beside each pedal for your thumbs. Sent as keyboard keys."),
 }
 
 enum class PedalMode(val label: String) {
@@ -108,7 +109,7 @@ class Settings(context: Context) {
     var extraButtons: Set<Protocol.Button>
         get() {
             val raw = p.getStringSet("extras", null) ?: return DEFAULT_EXTRAS
-            return raw.mapNotNull { runCatching { Protocol.Button.valueOf(it) }.getOrNull() }.filter { !it.pad }.toSet()
+            return raw.mapNotNull { runCatching { Protocol.Button.valueOf(it) }.getOrNull() }.filter { !it.pad && !it.truck }.toSet()
         }
         set(v) = p.edit().putStringSet("extras", v.map { it.name }.toSet()).apply()
 
@@ -125,9 +126,10 @@ class Settings(context: Context) {
         set(v) = p.edit().putBoolean("debug", v).apply()
 
     companion object {
-        val DEFAULT_EXTRAS = setOf(Protocol.Button.DRS, Protocol.Button.ERS, Protocol.Button.CLUTCH, Protocol.Button.PAUSE)
+        val DEFAULT_EXTRAS = setOf(Protocol.Button.DRS, Protocol.Button.ERS, Protocol.Button.CLUTCH, Protocol.Button.PAUSE,
+            Protocol.Button.PIT_LIMITER)
 
         /** Buttons that the Auto gears layout always shows as the big top-corner buttons. */
-        val AUTO_LAYOUT_BIG = setOf(Protocol.Button.DRS, Protocol.Button.CLUTCH)
+        val AUTO_LAYOUT_BIG = setOf(Protocol.Button.DRS, Protocol.Button.ERS, Protocol.Button.CLUTCH, Protocol.Button.PAUSE)
     }
 }

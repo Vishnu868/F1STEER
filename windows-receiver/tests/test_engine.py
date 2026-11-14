@@ -17,6 +17,7 @@ from f1wheel import protocol as P  # noqa: E402
 from f1wheel.backends import Backend  # noqa: E402
 from f1wheel.config import Config  # noqa: E402
 from f1wheel.engine import Receiver  # noqa: E402
+from f1wheel.keys import KeySender  # noqa: E402
 
 ADDR = ("192.168.1.50", 50000)
 
@@ -54,10 +55,29 @@ class Phone:
             rtt_ms=8.5, flags=flags)))
 
 
+class FakeKeys(KeySender):
+    """Records key presses instead of calling SendInput; the game is always 'in front'."""
+    def __init__(self):
+        super().__init__()
+        self.available = False
+        self.log = []
+
+    def allowed(self, only_in_game):
+        return True
+
+    def _press(self, key):
+        self.log.append(("down", key))
+        self.held.add(key)
+
+    def _release(self, key):
+        self.log.append(("up", key))
+        self.held.discard(key)
+
+
 def make(pin="123456"):
     cfg = Config(pin=pin)
     be = FakeBackend()
-    return Receiver(cfg, backend=be, clock=lambda: 0.0), be
+    return Receiver(cfg, backend=be, clock=lambda: 0.0, keys=FakeKeys()), be
 
 
 class ProtocolTests(unittest.TestCase):
@@ -263,8 +283,49 @@ class ReceiverTests(unittest.TestCase):
         bits = P.BUTTON_BIT["pad_a"] | P.BUTTON_BIT["dpad_left"] | P.BUTTON_BIT["start"]
         rx.handle_datagram(ph.state(buttons=bits), ADDR, 0.0)
         self.assertEqual(rx.compute_output(0.01)[3], frozenset({"A", "DPAD_LEFT", "START"}))
-        self.assertEqual(len(P.BUTTONS), 18)
+        self.assertEqual(len(P.BUTTONS), 32)
         self.assertEqual(set(P.PAD_XBOX), set(P.PAD_BUTTONS))
+
+    def test_truck_buttons_become_keys_not_xbox(self):
+        rx, _ = make()
+        ph = Phone()
+        rx.handle_datagram(ph.hello(), ADDR, 0.0)
+        bits = P.BUTTON_BIT["ind_left"] | P.BUTTON_BIT["horn"] | P.BUTTON_BIT["menu"]
+        rx.handle_datagram(ph.state(steer=0.3, buttons=bits), ADDR, 0.0)
+        rx.tick(0.01)
+        self.assertEqual(rx.out[3], frozenset())          # no Xbox buttons
+        self.assertAlmostEqual(rx.out[0], 0.3, places=3)  # steering still on the pad
+        self.assertEqual(rx.keys.held, {"[", "H", "ESC"})
+        rx.handle_datagram(ph.state(buttons=P.BUTTON_BIT["horn"]), ADDR, 0.02)
+        rx.tick(0.03)
+        self.assertEqual(rx.keys.held, {"H"})
+
+    def test_truck_keys_released_on_timeout(self):
+        rx, _ = make()
+        ph = Phone()
+        rx.handle_datagram(ph.hello(), ADDR, 0.0)
+        rx.handle_datagram(ph.state(buttons=P.BUTTON_BIT["park_brake"]), ADDR, 0.0)
+        rx.tick(0.01)
+        self.assertEqual(rx.keys.held, {"SPACE"})
+        rx.tick(0.5)                                      # phone went silent
+        self.assertEqual(rx.keys.held, set())
+        self.assertEqual(rx.keys.log[-1], ("up", "SPACE"))
+
+    def test_truck_bit_31_roundtrip(self):
+        ph = Phone()
+        bit = P.BUTTON_BIT["menu"]
+        self.assertEqual(bit, 1 << 31)
+        st = P.unpack_state(P.decode(ph.key, ph.state(buttons=bit)).payload)
+        self.assertEqual(st.buttons, bit)
+
+    def test_keys_blocked_outside_game(self):
+        ks = KeySender()
+        ks.available = True
+        ks.foreground_exe = lambda: "notepad.exe"
+        ks._send = lambda key, down: self.fail("must not type into other programs")
+        ks.apply({"H"}, only_in_game=True)
+        self.assertEqual(ks.held, set())
+        self.assertEqual(ks.blocked_reason, "game window not in front")
 
 
 if __name__ == "__main__":

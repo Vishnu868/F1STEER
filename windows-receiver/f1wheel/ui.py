@@ -7,7 +7,8 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from . import protocol as P
-from .config import DEFAULT_MAPPING, XBOX_BUTTONS, new_pin
+from .config import DEFAULT_MAPPING, DEFAULT_TRUCK_KEYS, XBOX_BUTTONS, new_pin
+from .keys import KEY_NAMES
 from .engine import Receiver, local_ipv4s
 
 BG = "#0d0f14"
@@ -41,6 +42,21 @@ FUNCTION_LABELS = {
     "dpad_right": "D-pad right",
     "start": "Start",
     "back": "Back",
+    # Truck layout (ETS2 / ATS) - sent as keyboard keys
+    "ind_left": "Indicator left",
+    "ind_right": "Indicator right",
+    "hazard": "Hazard lights",
+    "lights": "Headlights",
+    "high_beam": "High beam",
+    "horn": "Horn",
+    "park_brake": "Parking brake",
+    "engine": "Engine start/stop",
+    "cruise": "Cruise control",
+    "wipers": "Wipers",
+    "trailer": "Attach / detach trailer",
+    "activate": "Activate (Enter)",
+    "map": "Map",
+    "menu": "Menu (Esc)",
 }
 
 
@@ -193,6 +209,16 @@ class Dashboard:
             lamp = Lamp(pad, FUNCTION_LABELS[name].replace("D-pad ", "D-"))
             lamp.grid(row=i // 5, column=i % 5, padx=2, pady=2, sticky="ew")
             self.lamps[name] = lamp
+        self.lbl_truck = ttk.Label(li, text="Truck keys (ETS2 / ATS)", style="Muted.TLabel")
+        self.lbl_truck.pack(anchor="w", pady=(8, 0))
+        truck = ttk.Frame(li, style="Panel.TFrame")
+        truck.pack(anchor="w")
+        short = {"trailer": "Trailer", "activate": "Enter", "menu": "Esc", "engine": "Engine",
+                 "ind_left": "Ind. left", "ind_right": "Ind. right", "park_brake": "Park brake"}
+        for i, name in enumerate(P.TRUCK_BUTTONS):
+            lamp = Lamp(truck, short.get(name, FUNCTION_LABELS[name]))
+            lamp.grid(row=i // 5, column=i % 5, padx=2, pady=2, sticky="ew")
+            self.lamps[name] = lamp
 
         # --- performance
         pf = self._panel(grid, "Performance")
@@ -256,8 +282,14 @@ class Dashboard:
             if name in P.PAD_XBOX:
                 on = bool(held & P.BUTTON_BIT[name])
                 lamp.set(on, BLUE)
+            elif name in P.TRUCK_BUTTONS:
+                on = bool(held & P.BUTTON_BIT[name]) and s["live"]
+                lamp.set(on, AMBER if s["keys_blocked"] else GREEN)
             else:
                 lamp.set(m.get(name) in btns, AMBER if name.startswith("gear") else GREEN)
+
+        blocked = s["keys_blocked"]
+        self.lbl_truck.configure(text="Truck keys (ETS2 / ATS)" + (f"  -  NOT SENT: {blocked}" if blocked else ""))
 
         rtt = s["rtt"]
         self.perf["rx_hz"].configure(text=f"{s['rx_hz']:.0f} /s")
@@ -335,6 +367,14 @@ class Dashboard:
                 self.rx.run_test(throttle=1, seconds=1.0)
             elif what == "brake":
                 self.rx.run_test(brake=1, seconds=1.0)
+            elif what in self.rx.cfg.truck_keys:
+                key = self.rx.cfg.truck_keys[what]
+                if key == "NONE":
+                    self.lbl_bind.configure(text=f"{what} has no key set.")
+                    return
+                self.rx.run_key_test(key, seconds=0.3)
+                self.lbl_bind.configure(text=f"Pressed {key} for {what} (only reaches ETS2 / ATS).")
+                return
             else:
                 self.rx.run_test(buttons=(P.PAD_XBOX.get(what) or m[what],), seconds=0.4)
             self.lbl_bind.configure(text=f"Sent {what}.")
@@ -408,8 +448,29 @@ class SettingsDialog:
             self.map_vars[name] = v
             row(FUNCTION_LABELS[name], ttk.Combobox(f, textvariable=v, state="readonly",
                                                    values=XBOX_BUTTONS, width=18))
+        # Truck keys go in a second column so the dialog stays short.
+        tr = 0
+        ttk.Label(f, text="TRUCK KEYS  (phone Truck layout → keyboard key)", style="Muted.TLabel",
+                  font=("Segoe UI", 9, "bold")).grid(row=tr, column=2, columnspan=2, sticky="w", padx=(24, 0))
+        tr += 1
+        self.vars["truck_keys_only_in_game"] = tk.BooleanVar(value=cfg.truck_keys_only_in_game)
+        ttk.Label(f, text="Only send to ETS2 / ATS window", style="Panel.TLabel").grid(
+            row=tr, column=2, sticky="w", padx=(24, 0), pady=3)
+        ttk.Checkbutton(f, variable=self.vars["truck_keys_only_in_game"]).grid(
+            row=tr, column=3, sticky="w", padx=(10, 0))
+        tr += 1
+        self.key_vars = {}
+        for name in DEFAULT_TRUCK_KEYS:
+            v = tk.StringVar(value=cfg.truck_keys.get(name, "NONE"))
+            self.key_vars[name] = v
+            ttk.Label(f, text=FUNCTION_LABELS[name], style="Panel.TLabel").grid(
+                row=tr, column=2, sticky="w", padx=(24, 0), pady=3)
+            ttk.Combobox(f, textvariable=v, state="readonly", values=KEY_NAMES, width=12).grid(
+                row=tr, column=3, sticky="ew", padx=(10, 0), pady=3)
+            tr += 1
+        r = max(r, tr)
         b = ttk.Frame(f, style="Panel.TFrame")
-        b.grid(row=r, column=0, columnspan=2, pady=(12, 0), sticky="e")
+        b.grid(row=r, column=0, columnspan=4, pady=(12, 0), sticky="e")
         ttk.Button(b, text="Defaults", command=self._defaults).pack(side="left")
         ttk.Button(b, text="Cancel", command=w.destroy).pack(side="left", padx=6)
         ttk.Button(b, text="Save", style="Accent.TButton", command=self._save).pack(side="left")
@@ -417,6 +478,8 @@ class SettingsDialog:
     def _defaults(self):
         for k, v in DEFAULT_MAPPING.items():
             self.map_vars[k].set(v)
+        for k, v in DEFAULT_TRUCK_KEYS.items():
+            self.key_vars[k].set(v)
 
     def _save(self):
         cfg = self.rx.cfg
@@ -444,6 +507,8 @@ class SettingsDialog:
             cfg.invert_steering = bool(self.vars["invert_steering"].get())
             cfg.beacon = bool(self.vars["beacon"].get())
             cfg.mapping = {k: v.get() for k, v in self.map_vars.items()}
+            cfg.truck_keys = {k: v.get() for k, v in self.key_vars.items()}
+            cfg.truck_keys_only_in_game = bool(self.vars["truck_keys_only_in_game"].get())
             cfg.save()
         if backend_changed:
             threading.Thread(target=self.rx.open_backend, daemon=True).start()

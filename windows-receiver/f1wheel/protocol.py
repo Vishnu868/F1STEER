@@ -53,6 +53,8 @@ F_CALIBRATED = 0x04  # neutral position has been set
 # Bits 0-7: racing functions, re-mappable in the receiver settings.
 # Bits 8-17: the phone's PAD mode (menu navigation). These are fixed to the Xbox
 # button of the same name so the game's own prompts (A = select, B = back) stay true.
+# Bits 18-31: the phone's Truck layout (Euro Truck Simulator 2 / American Truck
+# Simulator). The receiver sends these as keyboard keys (see keys.py), not Xbox buttons.
 BUTTONS = [
     "drs",
     "ers",
@@ -72,10 +74,25 @@ BUTTONS = [
     "dpad_right",
     "start",
     "back",
+    "ind_left",
+    "ind_right",
+    "hazard",
+    "lights",
+    "high_beam",
+    "horn",
+    "park_brake",
+    "engine",
+    "cruise",
+    "wipers",
+    "trailer",
+    "activate",
+    "map",
+    "menu",
 ]
 BUTTON_BIT = {name: 1 << i for i, name in enumerate(BUTTONS)}
 RACING_BUTTONS = BUTTONS[:8]
-PAD_BUTTONS = BUTTONS[8:]
+PAD_BUTTONS = BUTTONS[8:18]
+TRUCK_BUTTONS = BUTTONS[18:]
 # Fixed Xbox button for every PAD button (not user-mappable).
 PAD_XBOX = {
     "pad_a": "A", "pad_b": "B", "pad_x": "X", "pad_y": "Y",

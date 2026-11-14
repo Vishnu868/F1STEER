@@ -9,6 +9,7 @@ EA SPORTS F1 25 (and other PC racing games that accept an Xbox controller).
 * **Two layouts:** *Auto gears* (big DRS and Clutch buttons) or *Paddle shift* (right = gear up,
   left = gear down, exactly one shift per tap).
 * **Extra buttons:** DRS, ERS, clutch, pause, look back, flashback, pit limiter, MFD (pick what you want on screen).
+* **Truck layout** for Euro Truck Simulator 2 / American Truck Simulator: indicators, lights, horn, parking brake, engine, cruise… sent as the game's keyboard keys. → [ETS2 / ATS guide](docs/ETS2-SETUP.md) (new, not yet tested in game)
 * **PAD mode** for menus: tap PAD (or PAUSE) and the screen becomes a gamepad: D-pad, A / B / X / Y, START, BACK. Steering is off while the pad is up, so the wheel can't move the cursor.
 * The Windows receiver presents a **virtual Xbox 360 controller** (ViGEmBus) that games recognise natively.
 * Local network only: UDP, PIN pairing with signed packets, no accounts, no cloud, no telemetry.
@@ -42,6 +43,7 @@ No wheel yet? Hold the phone upright like a steering pad and turn it. It works t
 | [Cardboard wheel](docs/CARDBOARD-WHEEL.md) | Dimensions, construction, phone mounting, grip |
 | [Calibration](docs/CALIBRATION.md) | Centre, axis, presets, every tuning parameter |
 | [F1 25 configuration](docs/F1-25-SETUP.md) | Controller settings, mapping, gearbox, assists |
+| [ETS2 / ATS configuration](docs/ETS2-SETUP.md) | Truck layout, keyboard keys, game controls |
 | [Testing](docs/TESTING.md) | Staged test plan, with what has and hasn't been verified yet |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Connection, controller, steering and touch issues |
 

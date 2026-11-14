@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from . import protocol as P
 from .backends import Backend, BackendError, NullBackend, create_backend
 from .config import Config
+from .keys import KeySender
 
 log = logging.getLogger("f1wheel")
 
@@ -66,8 +67,11 @@ class Stats:
 
 
 class Receiver:
-    def __init__(self, cfg: Config, backend: Backend | None = None, clock=time.perf_counter):
+    def __init__(self, cfg: Config, backend: Backend | None = None, clock=time.perf_counter,
+                 keys: KeySender | None = None):
         self.cfg = cfg
+        self.keys = keys if keys is not None else KeySender()
+        self.truck_out: frozenset = frozenset()   # keyboard keys the phone holds right now
         self.clock = clock
         self.key = P.derive_key(cfg.pin)
         self.backend: Backend = backend if backend is not None else NullBackend()
@@ -103,6 +107,7 @@ class Receiver:
         # dashboard test overrides
         self.test_until = 0.0
         self.test_state: tuple | None = None  # (steer, thr, brk, set(buttons))
+        self.test_keys: frozenset = frozenset()  # keyboard test (truck key helper)
 
         # last applied output, for the dashboard
         self.out = (0.0, 0.0, 0.0, frozenset())
@@ -251,8 +256,13 @@ class Receiver:
         """Decide what the virtual controller should show right now."""
         with self.lock:
             if self.test_state is not None and now < self.test_until:
+                self.truck_out = frozenset()
                 return self.test_state
             self.test_state = None
+            if self.test_keys and now < self.test_until:
+                self.truck_out = self.test_keys
+                return (0.0, 0.0, 0.0, frozenset())
+            self.test_keys = frozenset()
 
             fresh = (now - self.last_rx) * 1000 <= self.cfg.timeout_ms
             live = self.session is not None and fresh and (self.flags & P.F_ACTIVE)
@@ -266,6 +276,7 @@ class Receiver:
                 self.timed_out = True
                 self.gear_up.clear()
                 self.gear_down.clear()
+                self.truck_out = frozenset()
                 return (0.0, 0.0, 0.0, frozenset())
             if self.timed_out:
                 self.timed_out = False
@@ -279,15 +290,26 @@ class Receiver:
                 btns.add(m["gear_up"])
             if self.gear_down.tick(now, press_s, gap_s):
                 btns.add(m["gear_down"])
+            keys: set[str] = set()
             for name, bit in P.BUTTON_BIT.items():
                 if self.buttons & bit:
-                    btns.add(P.PAD_XBOX.get(name) or m.get(name, "NONE"))
+                    if name in self.cfg.truck_keys:
+                        keys.add(self.cfg.truck_keys[name])
+                    else:
+                        btns.add(P.PAD_XBOX.get(name) or m.get(name, "NONE"))
             btns.discard("NONE")
+            keys.discard("NONE")
+            self.truck_out = frozenset(keys)
             steer = -self.steer if self.cfg.invert_steering else self.steer
             return (steer, self.throttle, self.brake, frozenset(btns))
 
     def tick(self, now: float) -> None:
         out = self.compute_output(now)
+        try:
+            self.keys.apply(set(self.truck_out), self.cfg.truck_keys_only_in_game)
+        except Exception as e:
+            with self.lock:
+                self.event(f"Keyboard output failed: {e}")
         try:
             self.backend.set_state(out[0], out[1], out[2], set(out[3]))
         except Exception as e:
@@ -302,6 +324,12 @@ class Receiver:
                 while w and now - w[0] > 1.0:
                     w.popleft()
                 setattr(self.stats, attr, float(len(w)))
+
+    def run_key_test(self, key: str, seconds=0.3) -> None:
+        with self.lock:
+            self.test_state = None
+            self.test_keys = frozenset({key})
+            self.test_until = self.clock() + seconds
 
     def run_test(self, steer=0.0, throttle=0.0, brake=0.0, buttons=(), seconds=0.5) -> None:
         with self.lock:
@@ -351,6 +379,11 @@ class Receiver:
             self._end_session("server stopped")
             try:
                 self.backend.neutral()
+            except Exception:
+                pass
+            self.truck_out = frozenset()
+            try:
+                self.keys.release_all()
             except Exception:
                 pass
         self.event("Server stopped")
@@ -432,6 +465,9 @@ class Receiver:
                 "backend": self.backend.name if self.backend.connected else "none",
                 "backend_ok": self.backend.connected,
                 "backend_error": self.backend_error,
+                "truck_keys": self.truck_out,
+                "keys_held": frozenset(self.keys.held),
+                "keys_blocked": self.keys.blocked_reason if self.truck_out else "",
             }
 
 
