@@ -158,8 +158,13 @@ If the steering works but no key does, look at the receiver dashboard line *Truc
   Notepad, use **Bind helper → horn → Send in 3 s** and click into Notepad: an `h` must
   appear. If it does, the game is the problem; if not, the receiver cannot send keys on
   this PC (see next point).
-* Running the game **as administrator** but the receiver not? Windows blocks keys from a
-  normal program to an elevated one. Run both normally (recommended) or both as administrator.
+* **Lamp amber, "NOT SENT: eurotrucks2.exe runs as administrator"**: the game is set to run
+  as administrator, and Windows silently drops keys from a normal program to an elevated one
+  (the send still reports success, so nothing else shows an error). Close the game,
+  right-click `eurotrucks2.exe` (in `bin\win_x64\` of the game folder) → *Properties* →
+  *Compatibility* → untick **Run this program as an administrator** (also under *Change
+  settings for all users*), then start the game normally. This was the cause on the test
+  laptop. Running both as administrator also works, but normal is recommended.
 
 ## Latency on Wi-Fi
 

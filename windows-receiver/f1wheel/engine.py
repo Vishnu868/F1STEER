@@ -72,6 +72,7 @@ class Receiver:
         self.cfg = cfg
         self.keys = keys if keys is not None else KeySender()
         self.truck_out: frozenset = frozenset()   # keyboard keys the phone holds right now
+        self._keys_blocked_logged = ""            # last "keys not sent" reason written to the log
         self.clock = clock
         self.key = P.derive_key(cfg.pin)
         self.backend: Backend = backend if backend is not None else NullBackend()
@@ -310,6 +311,12 @@ class Receiver:
         except Exception as e:
             with self.lock:
                 self.event(f"Keyboard output failed: {e}")
+        blocked = self.keys.blocked_reason if self.truck_out else ""
+        if blocked != self._keys_blocked_logged:
+            self._keys_blocked_logged = blocked
+            if blocked:
+                with self.lock:
+                    self.event(f"Truck keys not sent: {blocked}")
         try:
             self.backend.set_state(out[0], out[1], out[2], set(out[3]))
         except Exception as e:

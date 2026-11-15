@@ -41,14 +41,15 @@ on a machine without it, use the APK from GitHub Releases instead of building.
 
 Receiver settings and log: `%APPDATA%\F1Wheel\config.json` and `receiver.log`.
 
-## Truck / ETS2 status (open work)
+## Truck / ETS2 status
 
-Steering and pedals work in ETS2 (Xbox pad, Simple Automatic gearbox). The **truck buttons
-did not reach the game** with receiver 1.3.0: the phone's Truck-layout buttons should make
-the receiver press keyboard keys (`[` = left indicator, `L` lights, `H` horn, ...: the
-game's defaults), but nothing happened in ETS2. Sending the same keys into a normal window
-works. 1.4.0 adds an 80 ms minimum key hold and names the foreground program when keys are
-blocked; untested in the game so far.
+Steering and pedals work in ETS2 (Xbox pad, Simple Automatic gearbox). Truck keys work in
+ETS2 (tested on the gaming laptop: left indicator, lights, horn). The earlier failure was
+`eurotrucks2.exe` set to *Run as administrator*: Windows (UIPI) drops input from the normal
+receiver to an elevated game while `SendInput` still returns 1. `keys.py` now checks the
+game's elevation and reports "runs as administrator" on the dashboard and in the log; fix
+on the PC by unticking *Run as administrator* for the game. Other truck functions and ATS
+are untested.
 
 How the key path works (`engine.py` `compute_output` → `tick` → `keys.py` `KeySender.apply`):
 truck bits 18-31 → `cfg.truck_keys` → scan-code `SendInput`, only while the foreground

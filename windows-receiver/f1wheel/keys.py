@@ -61,9 +61,11 @@ class KeySender:
         self._pressed_at: dict[str, float] = {}
         self.available = sys.platform == "win32"
         self.blocked_reason = ""          # shown on the dashboard
-        self._fg_cache: tuple[int, str] = (0, "")
+        self._fg_cache: tuple[int, str, bool] = (0, "", False)
+        self.self_elevated = False
         if self.available:
             self._init_win32()
+            self.self_elevated = self._is_elevated(self._kernel32.GetCurrentProcessId())
 
     # ------------------------------------------------------------ win32
     def _init_win32(self) -> None:
@@ -93,23 +95,48 @@ class KeySender:
         self._kernel32.QueryFullProcessImageNameW.argtypes = (
             wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD))
         self._kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        self._advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+        self._advapi32.OpenProcessToken.argtypes = (wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(wintypes.HANDLE))
+        self._advapi32.GetTokenInformation.argtypes = (
+            wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD))
 
-    def _send(self, key: str, down: bool) -> None:
+    def _send(self, key: str, down: bool) -> bool:
         scan, ext = _SCAN[key]
         flags = 0x0008 | (0x0001 if ext else 0) | (0 if down else 0x0002)  # SCANCODE | EXTENDED | KEYUP
         inp = self._INPUT(type=1, u=self._U(ki=self._KEYBDINPUT(0, scan, flags, 0, 0)))
-        self._user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(inp))
+        if self._user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(inp)) != 1:
+            self.blocked_reason = f"Windows refused the key (SendInput error {ctypes.get_last_error()})"
+            return False
+        return True
 
-    def foreground_exe(self) -> str:
-        """Lower-case file name of the program whose window is in front ('' if unknown)."""
+    def _is_elevated(self, pid: int) -> bool:
+        """True if the process runs as administrator. False if not, or if it can't be checked."""
+        from ctypes import wintypes
+        h = self._kernel32.OpenProcess(0x1000, False, pid)   # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        token = wintypes.HANDLE()
+        try:
+            if not self._advapi32.OpenProcessToken(h, 0x0008, ctypes.byref(token)):   # TOKEN_QUERY
+                return False
+            value, size = wintypes.DWORD(), wintypes.DWORD()
+            ok = self._advapi32.GetTokenInformation(token, 20, ctypes.byref(value), 4, ctypes.byref(size))
+            return bool(ok and value.value)                                          # 20 = TokenElevation
+        finally:
+            if token:
+                self._kernel32.CloseHandle(token)
+            self._kernel32.CloseHandle(h)
+
+    def _foreground(self) -> tuple[str, bool]:
+        """(lower-case exe name, runs as administrator) of the window in front."""
         if not self.available:
-            return ""
+            return "", False
         from ctypes import wintypes
         hwnd = self._user32.GetForegroundWindow()
         if not hwnd:
-            return ""
+            return "", False
         if self._fg_cache[0] == hwnd:
-            return self._fg_cache[1]
+            return self._fg_cache[1], self._fg_cache[2]
         pid = wintypes.DWORD()
         self._user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
         name = ""
@@ -122,8 +149,17 @@ class KeySender:
                     name = os.path.basename(buf.value).lower()
             finally:
                 self._kernel32.CloseHandle(h)
-        self._fg_cache = (hwnd, name)
-        return name
+        elevated = self._is_elevated(pid.value)
+        self._fg_cache = (hwnd, name, elevated)
+        return name, elevated
+
+    def foreground_exe(self) -> str:
+        """Lower-case file name of the program whose window is in front ('' if unknown)."""
+        return self._foreground()[0]
+
+    def foreground_elevated(self) -> bool:
+        """True if the window in front belongs to a program running as administrator."""
+        return self._foreground()[1]
 
     # ------------------------------------------------------------ public
     def allowed(self, only_in_game: bool) -> bool:
@@ -135,6 +171,13 @@ class KeySender:
             if exe not in TRUCK_GAMES:
                 self.blocked_reason = f"game window not in front (in front: {exe or 'unknown'})"
                 return False
+        # Windows (UIPI) silently drops input from a normal program to one running as
+        # administrator: SendInput still reports success, so check it up front.
+        if self.foreground_elevated() and not self.self_elevated:
+            exe = self.foreground_exe() or "the game"
+            self.blocked_reason = (f"{exe} runs as administrator, so Windows blocks the keys. "
+                                   "Start the game normally (untick 'Run as administrator')")
+            return False
         self.blocked_reason = ""
         return True
 
@@ -163,8 +206,8 @@ class KeySender:
         self._pressed_at.clear()
 
     def _press(self, key: str) -> None:
-        if self.available:
-            self._send(key, True)
+        if self.available and not self._send(key, True):
+            return
         self.held.add(key)
 
     def _release(self, key: str) -> None:

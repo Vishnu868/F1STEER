@@ -331,6 +331,46 @@ class ReceiverTests(unittest.TestCase):
         self.assertTrue(ks.blocked_reason.startswith("game window not in front"))
         self.assertIn("notepad.exe", ks.blocked_reason)
 
+    def test_keys_blocked_when_game_runs_as_admin(self):
+        # Windows drops input to an elevated game while SendInput still returns 1,
+        # so the receiver must refuse up front and say why.
+        ks = KeySender()
+        ks.available = True
+        ks.self_elevated = False
+        ks.foreground_exe = lambda: "eurotrucks2.exe"
+        ks.foreground_elevated = lambda: True
+        ks._send = lambda key, down: self.fail("keys to an elevated game are dropped by Windows")
+        ks.apply({"H"}, only_in_game=True)
+        self.assertEqual(ks.held, set())
+        self.assertIn("administrator", ks.blocked_reason)
+
+    def test_keys_sent_when_both_elevated(self):
+        ks = KeySender()
+        ks.available = True
+        ks.self_elevated = True
+        ks.foreground_exe = lambda: "eurotrucks2.exe"
+        ks.foreground_elevated = lambda: True
+        sent = []
+        ks._send = lambda key, down: sent.append((key, down)) or True
+        ks.apply({"H"}, only_in_game=True)
+        self.assertEqual(sent, [("H", True)])
+        self.assertEqual(ks.blocked_reason, "")
+
+    def test_refused_sendinput_is_reported(self):
+        ks = KeySender()
+        ks.available = True
+        ks.self_elevated = False
+        ks.foreground_exe = lambda: "eurotrucks2.exe"
+        ks.foreground_elevated = lambda: False
+
+        def refuse(key, down):
+            ks.blocked_reason = "Windows refused the key (SendInput error 5)"
+            return False
+        ks._send = refuse
+        ks.apply({"H"}, only_in_game=True)
+        self.assertEqual(ks.held, set())       # not marked as held, so it is retried
+        self.assertIn("refused", ks.blocked_reason)
+
 
 if __name__ == "__main__":
     unittest.main()
