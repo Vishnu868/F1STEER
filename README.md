@@ -1,7 +1,7 @@
 # DIY F1 Wheel
 
 Turn an Android phone into an **analog racing wheel** for
-EA SPORTS F1 25 (and other PC racing games that accept an Xbox controller).
+EA SPORTS F1 25, **Euro Truck Simulator 2** (and other PC racing games that accept an Xbox controller).
 
 * **Steering** from the phone's gyroscope: true analog, drift-corrected by gravity,
   calibrated centre and axis, adjustable range, dead zone, curve and smoothing.
@@ -32,6 +32,23 @@ EA SPORTS F1 25 (and other PC racing games that accept an Xbox controller).
 
 No wheel yet? Hold the phone upright like a steering pad and turn it. It works the same.
 
+## Euro Truck Simulator 2 / American Truck Simulator
+
+1. **Phone:** *Controller layout* → **Truck (ETS2 / ATS)**; *Steering response* → **Truck**
+   preset (540° each way = 3 turns lock to lock, like a real truck).
+2. **Game:** start the receiver first, then ETS2. In the *Input wizard* pick **Controls**,
+   then gearbox **Simple Automatic**. Steering, throttle and brake arrive as the Xbox pad.
+3. **Truck buttons** (indicators, lights, high beam, hazard, horn, parking brake, engine,
+   cruise, wipers, trailer...) are pressed as the game's **default keyboard keys** by the
+   receiver. Nothing to map in the game; *Keys & Buttons → Reset to defaults* if you changed
+   them.
+4. **Do not run ETS2 as administrator.** Windows blocks keys from a normal program to an
+   elevated game; the receiver now says so on its dashboard.
+5. **Throttle lock:** tap THROTTLE and it stays on while you turn the wheel hand over hand;
+   tap again or touch BRAKE to release.
+
+Full guide: [docs/ETS2-SETUP.md](docs/ETS2-SETUP.md)
+
 ## Documentation
 
 | | |
@@ -54,6 +71,7 @@ No wheel yet? Hold the phone upright like a steering pad and turn it. It works t
 | Android app: protocol (golden bytes shared with Python), steering math | ✅ verified (JVM unit tests) |
 | Android app on a real phone (Nothing Phone (2), Android 16) | ✅ verified: steering, centring, pedals, paddles, disconnect safety, auto-reconnect ([log](docs/TESTING.md)) |
 | F1 25 in-game (EA app, *Auto gears* layout) | ✅ verified: steering, throttle, brake, DRS, disconnect safety ([log](docs/TESTING.md)) |
+| ETS2 in-game (Truck layout) | ✅ verified: steering, throttle, brake, left indicator, lights, horn. Other truck keys and ATS not checked yet |
 
 ## Repository layout
 

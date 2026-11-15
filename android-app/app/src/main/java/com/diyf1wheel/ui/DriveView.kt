@@ -77,7 +77,8 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
     private val dRight = Control(Kind.BUTTON, "▶", Theme.GREY, Protocol.Button.DPAD_RIGHT, titleScale = 2f)
     private val padStart = Control(Kind.BUTTON, "START", Theme.SKY, Protocol.Button.START, compact = true)
     private val padBack = Control(Kind.BUTTON, "BACK", Theme.GREY, Protocol.Button.BACK, compact = true)
-    private val toDrive = Control(Kind.TO_DRIVE, "BACK TO DRIVING", Theme.GREEN, compact = true)
+    // A cross-cell-sized corner button: "BACK TO DRIVING" would shrink to an unreadable size there.
+    private val toDrive = Control(Kind.TO_DRIVE, "DRIVE", Theme.GREEN, compact = true)
     private val padControls = listOf(dUp, dDown, dLeft, dRight, padY, padX, padB, padA, padBack, padStart, toDrive)
 
     private var layout = ControllerLayout.AUTO_GEARS
@@ -206,7 +207,10 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
         if (padMode) layoutPad(w, h) else layoutDrive(w, h)
     }
 
-    /** PAD mode: D-pad cross on the left, A/B/X/Y diamond on the right, START / BACK in the middle. */
+    /**
+     * PAD mode: D-pad cross on the left with BACK in its top-left corner, A/B/X/Y diamond on
+     * the right with DRIVE (back to driving) in its top-right corner, START in the middle.
+     */
     private fun layoutPad(w: Int, h: Int) {
         val edge = 8 * dp     // close to the edges, like the driving layout
         val left = edge
@@ -226,18 +230,19 @@ class DriveView(context: Context, private val engine: WheelEngine) : View(contex
         }
         cross(left + 1.5f * s, dUp, dDown, dLeft, dRight)
         cross(right - 1.5f * s, padY, padA, padX, padB)
+        // The empty top corner of each cross: BACK beside ▲ (top left), DRIVE beside Y (top right).
+        // Same size as a cross cell, so both stay thumb-sized and nothing overlaps.
+        padBack.rect.set(left + gap, cy - 1.5f * s + gap, left + s - gap, cy - 0.5f * s - gap)
+        toDrive.rect.set(right - s + gap, cy - 1.5f * s + gap, right - gap, cy - 0.5f * s - gap)
 
         val cl = left + 3f * s + gap * 4
         val cr = right - 3f * s - gap * 4
         val cw = cr - cl
         chipTop = top
         val bh = min(46 * dp, (bottom - top) * 0.14f)
-        val bw = min(cw * 0.42f, 150 * dp)
-        padBack.rect.set(cl + cw / 2 - bw - 5 * dp, cy - bh / 2, cl + cw / 2 - 5 * dp, cy + bh / 2)
-        padStart.rect.set(cl + cw / 2 + 5 * dp, cy - bh / 2, cl + cw / 2 + bw + 5 * dp, cy + bh / 2)
-        val ch = min(40 * dp, (bottom - top) * 0.1f)
-        toDrive.rect.set(cl + cw * 0.1f, bottom - ch, cr - cw * 0.1f, bottom)
-        infoY = toDrive.rect.top - 10 * dp
+        val bw = min(cw * 0.5f, 160 * dp)
+        padStart.rect.set(cl + cw / 2 - bw / 2, cy - bh / 2, cl + cw / 2 + bw / 2, cy + bh / 2)
+        infoY = bottom - 6 * dp
         gaugeRect.set(cl, top, cr, infoY)
     }
 
