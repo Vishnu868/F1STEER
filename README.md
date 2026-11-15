@@ -16,7 +16,7 @@ EA SPORTS F1 25 (and other PC racing games that accept an Xbox controller).
 * Safety: any disconnect, timeout or leaving the driving screen sets the controls to **neutral** within 150 ms.
 
 ```
- phone (gyro + touch) ──UDP 200 Hz, signed──► Windows receiver ──► virtual Xbox 360 pad ──► F1 25
+ phone (gyro + touch) ──UDP 200 Hz, signed──► Windows receiver ──► virtual Xbox 360 pad ──► F1 25,ETS2
 ```
 
 ## Quick start
